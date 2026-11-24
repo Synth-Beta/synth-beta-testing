@@ -1,6 +1,6 @@
 /**
  * GenreChatsSection — horizontal scroll of genre community chat cards.
- * Shown at the bottom of the Discover tab (below the Calendar).
+ * Shown at the top of the Messages tab, above the chat list.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -12,14 +12,11 @@ import {
     View,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { MessageCircle, Users } from 'lucide-react-native';
-import { SynthText } from '../SynthText';
 import { SkeletonBox } from '../skeletons';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { GenreChatService, pastelFromHex, type GenreChatInfo } from '../../services/genreChatService';
 import { showToast } from '../Toast';
-
-const PINK = SynthTokens.colors.brandPink500;
+import { PressableScale } from '../../motion/PressableScale';
 
 function formatCount(n: number): string {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
@@ -38,53 +35,54 @@ function GenreCard({
     joining: boolean;
 }) {
     const { genre, chatId, memberCount, isJoined } = info;
+    const joined = Boolean(isJoined && chatId);
 
     return (
-        <View style={[styles.card, { backgroundColor: pastelFromHex(genre.color), borderColor: genre.color }]}>
+        // The genre's own tint is the only surface cue: no border, no shadow.
+        <Pressable
+            onPress={() => (joined && chatId ? onNavigate(chatId) : undefined)}
+            disabled={!joined}
+            style={[styles.card, { backgroundColor: pastelFromHex(genre.color) }]}
+            accessibilityRole={joined ? 'link' : undefined}
+            accessibilityLabel={joined ? `Open ${genre.name} chat` : undefined}
+        >
+            {/* Same emoji mark the chat list uses for this community. */}
             <Text style={styles.cardEmoji}>{genre.emoji}</Text>
-            <SynthText variant="body" style={styles.cardName} numberOfLines={1}>
-                {genre.name}
-            </SynthText>
-            <SynthText variant="meta" color="secondary" style={styles.cardDesc} numberOfLines={2}>
-                {genre.description}
-            </SynthText>
-
-            {/* Member count */}
-            <View style={styles.memberRow}>
-                <Users size={12} color={SynthTokens.colors.neutral400} />
-                <Text style={styles.memberText}>
+            <View style={styles.textCol}>
+                <Text style={styles.cardName} numberOfLines={1}>
+                    {genre.name}
+                </Text>
+                <Text style={styles.memberText} numberOfLines={1}>
                     {`${formatCount(memberCount)} ${memberCount === 1 ? 'member' : 'members'}`}
                 </Text>
             </View>
-
-            {/* Action button */}
-            {isJoined && chatId ? (
-                <View style={styles.joinedActions}>
-                    <View style={[styles.joinedBadge, { backgroundColor: `${genre.color}18` }]}>
-                        <Text style={[styles.joinedBadgeText, { color: genre.color }]}>✓ Joined</Text>
-                    </View>
-                    <Pressable
-                        onPress={() => onNavigate(chatId)}
-                        style={[styles.chatBtn, { borderColor: genre.color }]}
-                    >
-                        <MessageCircle size={13} color={genre.color} />
-                        <Text style={[styles.chatBtnText, { color: genre.color }]}>Open</Text>
-                    </Pressable>
-                </View>
+            {joined && chatId ? (
+                <PressableScale
+                    haptic="light"
+                    onPress={() => onNavigate(chatId)}
+                    style={[styles.pillBtn, styles.openBtn]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${genre.name} chat`}
+                >
+                    <Text style={styles.openBtnText}>Open</Text>
+                </PressableScale>
             ) : (
-                <Pressable
+                <PressableScale
+                    haptic="light"
                     onPress={() => onJoin(genre.id)}
                     disabled={joining}
-                    style={[styles.joinBtn, { backgroundColor: genre.color }]}
+                    style={[styles.pillBtn, styles.joinBtn]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Join ${genre.name}`}
                 >
                     {joining ? (
-                        <ActivityIndicator size="small" color="#FFFDFA" />
+                        <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
                     ) : (
                         <Text style={styles.joinBtnText}>Join</Text>
                     )}
-                </Pressable>
+                </PressableScale>
             )}
-        </View>
+        </Pressable>
     );
 }
 
@@ -126,10 +124,10 @@ export function GenreChatsSection({ currentUserId }: Props) {
                     )
                 );
             } else {
-                showToast('Could not join chat. Please try again.', { title: 'Error' });
+                showToast('Try again in a moment.', { title: "Couldn't join" });
             }
         } catch {
-            showToast('Could not join chat. Please try again.', { title: 'Error' });
+            showToast('Try again in a moment.', { title: "Couldn't join" });
         } finally {
             setJoiningId(null);
         }
@@ -141,20 +139,11 @@ export function GenreChatsSection({ currentUserId }: Props) {
 
     return (
         <View style={styles.container}>
-            {/* Section header */}
-            <View style={styles.header}>
-                <View>
-                    <SynthText variant="h2" style={styles.title}>Genre Communities</SynthText>
-                    <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                        Join chats with fans who share your taste
-                    </SynthText>
-                </View>
-            </View>
-
+            <Text style={styles.label}>Communities</Text>
             {loading ? (
                 <View style={[styles.loadingRow, styles.scrollContent]}>
                     {[0, 1, 2].map((i) => (
-                        <SkeletonBox key={i} width={CARD_W} height={160} borderRadius={18} />
+                        <SkeletonBox key={i} width={CARD_W} height={CARD_H} borderRadius={14} />
                     ))}
                 </View>
             ) : (
@@ -178,115 +167,82 @@ export function GenreChatsSection({ currentUserId }: Props) {
     );
 }
 
-const CARD_W = 148;
+/** Row cards: ~1.6 fit on a phone, so the rail reads as scrollable and costs one row of height. */
+const CARD_W = 224;
+const CARD_H = 64;
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: 28,
-        marginBottom: 12,
+        marginTop: 16,
+        marginBottom: 8,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        marginBottom: 14,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: SynthTokens.colors.neutral900,
-    },
-    subtitle: {
-        marginTop: 2,
+    label: {
         fontSize: 13,
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral600,
+        marginBottom: 8,
     },
     loadingRow: {
-        height: 180,
         flexDirection: 'row',
         overflow: 'hidden',
     },
     scrollContent: {
         paddingRight: SynthTokens.spacing.md,
-        gap: 12,
+        gap: 8,
     },
     card: {
         width: CARD_W,
-        backgroundColor: SynthTokens.colors.neutral0,
-        borderRadius: 18,
-        padding: 14,
-        gap: 6,
-        shadowColor: '#0E0E0E',
-        shadowOpacity: 0.07,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
-        borderWidth: 1.5,
-        borderColor: SynthTokens.colors.neutral100,
+        height: CARD_H,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderRadius: 14,
+        paddingLeft: 12,
+        paddingRight: 10,
     },
     cardEmoji: {
-        fontSize: 28,
-        lineHeight: 32,
-        marginBottom: 2,
+        fontSize: 22,
+        lineHeight: 26,
+    },
+    textCol: {
+        flex: 1,
+        minWidth: 0,
     },
     cardName: {
-        fontWeight: '700',
-        fontSize: 14,
+        fontSize: 15,
+        lineHeight: 20,
+        fontWeight: '600',
         color: SynthTokens.colors.neutral900,
     },
-    cardDesc: {
-        fontSize: 11,
-        lineHeight: 15,
-        color: SynthTokens.colors.neutral400,
-        flexShrink: 1,
-    },
-    memberRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginTop: 2,
-    },
     memberText: {
-        fontSize: 11,
-        color: SynthTokens.colors.neutral400,
-        fontWeight: '500',
+        fontSize: 12,
+        lineHeight: 16,
+        color: SynthTokens.colors.neutral600,
+        fontVariant: ['tabular-nums'],
     },
-    joinBtn: {
-        marginTop: 6,
-        borderRadius: 10,
-        paddingVertical: 8,
+    pillBtn: {
+        height: 32,
+        minWidth: 56,
+        paddingHorizontal: 14,
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 34,
+    },
+    // Ink, not the genre color: white on amber/lime/cyan fails 4.5:1 at 13px.
+    joinBtn: {
+        backgroundColor: SynthTokens.colors.neutral900,
     },
     joinBtnText: {
-        color: '#FFFDFA',
-        fontWeight: '700',
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '600',
         fontSize: 13,
     },
-    joinedActions: {
-        marginTop: 6,
-        gap: 6,
+    openBtn: {
+        backgroundColor: SynthTokens.colors.neutral0,
     },
-    joinedBadge: {
-        borderRadius: 8,
-        paddingVertical: 5,
-        alignItems: 'center',
-    },
-    joinedBadgeText: {
-        fontWeight: '700',
-        fontSize: 12,
-    },
-    chatBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 4,
-        borderRadius: 8,
-        paddingVertical: 5,
-        borderWidth: 1.5,
-    },
-    chatBtnText: {
-        fontWeight: '700',
-        fontSize: 12,
+    openBtnText: {
+        color: SynthTokens.colors.neutral900,
+        fontWeight: '600',
+        fontSize: 13,
     },
 });

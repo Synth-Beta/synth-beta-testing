@@ -33,7 +33,9 @@ import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, Messag
 import { Icon } from '@/components/Icon';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { isEventUpcomingForFeed } from '@/utils/localYmd';
+import { cn } from '@/lib/utils';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
+import { GenreChatsSection } from '@/components/discover/GenreChatsSection';
 import { FriendsService } from '@/services/friendsService';
 import { Button } from '@/components/ui/button';
 import { FlagContentModal } from '@/components/moderation/FlagContentModal';
@@ -275,6 +277,19 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [loadingRecommendedGroupChats, setLoadingRecommendedGroupChats] = useState(false);
   
   // Recommended friends for friend suggestions rail (2nd and 3rd degree)
+  // Wide desktop: people + communities move from the feed into a right-hand panel, so the
+  // space beside the 640px feed column has a job instead of sitting empty.
+  const sidePanelQuery = '(min-width: 1280px)';
+  const [wideScreen, setWideScreen] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(sidePanelQuery).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(sidePanelQuery);
+    const onChange = () => setWideScreen(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   const [friendSuggestionsForRail, setFriendSuggestionsForRail] = useState<Array<{
     user_id: string;
     name: string;
@@ -324,6 +339,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const isSearchMode = isSearchFocused || isSearchActive;
+  const showSidePanel = webDesktopChrome && wideScreen && !isSearchMode && selectedFeedType === 'events';
   // A tap that starts on the search bar (the X, especially) must not also hit
   // the empty-state dismiss target once the keyboard or layout shifts.
   const suppressSearchDismissRef = useRef(false);
@@ -1987,6 +2003,11 @@ interface FriendEventInterest {
           transition: 'margin-top 0.2s ease-out',
         }}
       >
+        <div className={showSidePanel ? 'mx-auto flex max-w-[972px] items-start gap-8' : undefined}>
+        <div className={showSidePanel ? 'w-[640px] min-w-0 shrink-0' : undefined}>
+        {/* Same 640px column as the feed (.home-thread), so the top controls and the feed share one left edge on desktop. */}
+        {/* Desktop: also match .swift-ui-feed's side padding, so the banner, search and event cards share one edge. */}
+        <div className={isSearchMode ? undefined : cn('mx-auto w-full max-w-[640px]', webDesktopChrome && 'px-[var(--spacing-screen-margin-x,20px)]')}>
         {!isSearchMode && <GetAppBanner />}
         <div
           style={{ marginBottom: 16 }}
@@ -2009,6 +2030,7 @@ interface FriendEventInterest {
               <LocationFilterButton />
             </div>
           )}
+        </div>
         </div>
 
         {isSearchMode && (
@@ -2117,7 +2139,7 @@ interface FriendEventInterest {
             extrasLoading={loadingReviews || !friendFeedEventsLoaded}
             middleSection={
               <>
-                {friendSuggestionsForRail.length > 0 && (
+                {friendSuggestionsForRail.length > 0 && !showSidePanel && (
                   <FriendSuggestionsRail
                     suggestions={friendSuggestionsForRail}
                     onUserClick={(userId) => onNavigateToProfile?.(userId)}
@@ -2344,6 +2366,32 @@ interface FriendEventInterest {
             )}
           </div>
         )}
+
+        </div>
+        {/* top-16 clears the translucent header; capped height so the bottom stays reachable on short windows. */}
+        {showSidePanel && (
+          <aside className="scrollbar-hide sticky top-16 hidden max-h-[calc(100vh-80px)] w-[300px] shrink-0 flex-col gap-3 overflow-y-auto xl:flex" aria-label="Suggestions">
+            {friendSuggestionsForRail.length > 0 && (
+              <div className="rounded-2xl bg-[var(--neutral-0)] p-2 pt-3 shadow-[0_0_0_1px_rgba(14,14,14,0.06),0_1px_2px_rgba(14,14,14,0.04)]">
+                <FriendSuggestionsRail
+                  layout="list"
+                  suggestions={friendSuggestionsForRail}
+                  onUserClick={(userId) => onNavigateToProfile?.(userId)}
+                  onAddFriend={handleSendFriendRequestForRail}
+                />
+              </div>
+            )}
+            <div className="rounded-2xl bg-[var(--neutral-0)] p-2 pt-3 shadow-[0_0_0_1px_rgba(14,14,14,0.06),0_1px_2px_rgba(14,14,14,0.04)]">
+              <GenreChatsSection
+                layout="list"
+                limit={5}
+                currentUserId={currentUserId}
+                onNavigateToChat={(chatId) => onNavigateToChat?.(chatId)}
+              />
+            </div>
+          </aside>
+        )}
+        </div>
 
       {/* Event Details Modal — portalled to body so it escapes any transform ancestor */}
       {eventDetailsOpen && selectedEvent && createPortal(

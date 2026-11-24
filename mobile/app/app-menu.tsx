@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   Text,
+  Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,8 +20,10 @@ import {
   Sparkles,
   Check,
   CalendarDays,
+  LogOut,
 } from 'lucide-react-native';
 import { isSecretAdminMenuAllowed } from '@synth/shared';
+import { unregisterExpoPushToken } from '../lib/pushTokenSync';
 import { supabase } from '../src/integrations/supabase/client';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 
@@ -88,6 +91,18 @@ export default function AppMenuScreen() {
   const close = () => router.back();
 
   const isVerifiedAdmin = accountType === 'admin';
+
+  // Same sign-out as Settings; the root auth listener routes to login.
+  const [signingOut, setSigningOut] = useState(false);
+  const onLogout = async () => {
+    setSigningOut(true);
+    try {
+      await unregisterExpoPushToken();
+      await supabase.auth.signOut();
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -181,6 +196,21 @@ export default function AppMenuScreen() {
             <Text style={styles.verifiedTitle}>Verified Account</Text>
           </View>
         ) : null}
+
+        <Pressable
+          style={[styles.logoutBtn, signingOut && { opacity: 0.6 }]}
+          disabled={signingOut}
+          accessibilityRole="button"
+          onPress={() => {
+            Alert.alert('Log out', 'Are you sure you want to log out?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Log out', style: 'destructive', onPress: () => void onLogout() },
+            ]);
+          }}
+        >
+          <LogOut size={20} color={SynthTokens.colors.neutral0} />
+          <Text style={styles.logoutTxt}>{signingOut ? 'Logging out…' : 'Log out'}</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -356,6 +386,17 @@ const styles = StyleSheet.create({
     borderColor: SynthTokens.colors.neutral200,
     backgroundColor: SynthTokens.colors.neutral0,
   },
+  logoutBtn: {
+    marginTop: SynthTokens.spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: SynthTokens.colors.brandPink500,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  logoutTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral0 },
   verifiedTitle: {
     fontSize: 14,
     fontWeight: '700',

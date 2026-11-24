@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -15,6 +14,8 @@ import { createFriendRequest } from '@synth/shared';
 import { supabase } from '../../integrations/supabase/client';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import type { FriendSuggestion } from '../../services/homeFeedService';
+import { PressableScale } from '../../motion/PressableScale';
+import { SkeletonBox } from '../skeletons';
 
 interface FriendSuggestionsRailProps {
   suggestions: FriendSuggestion[];
@@ -125,16 +126,23 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
       .toUpperCase()
       .slice(0, 2);
 
+  /** One reason per person: mutual friends beat shared genres; friend-of-a-friend is the fallback. */
+  const reasonFor = (s: FriendSuggestion): string => {
+    if (s.mutual_friends_count > 0) {
+      return `${s.mutual_friends_count} mutual friend${s.mutual_friends_count !== 1 ? 's' : ''}`;
+    }
+    const genres = s.shared_genres_count ?? 0;
+    if (genres > 0) return `${genres} shared genre${genres !== 1 ? 's' : ''}`;
+    return s.connection_depth === 2 ? 'Friend of a friend' : '';
+  };
+
   if (!exclusionsLoaded) {
     return (
       <View style={styles.section}>
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>Who You Should Know</Text>
-          <Text style={styles.subtitle}>People you may know</Text>
-        </View>
-        <View style={styles.skeletonRow}>
+        <Text style={styles.label}>People you may know</Text>
+        <View style={[styles.row, styles.skeletonRow]}>
           {[0, 1, 2].map(i => (
-            <View key={i} style={styles.skeletonCard} />
+            <SkeletonBox key={i} width={CARD_W} height={CARD_H} borderRadius={14} />
           ))}
         </View>
       </View>
@@ -147,13 +155,11 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
 
   return (
     <View style={styles.section}>
-      <View style={styles.titleBlock}>
-        <Text style={styles.title}>Who You Should Know</Text>
-        <Text style={styles.subtitle}>People you may know</Text>
-      </View>
+      <Text style={styles.label}>People you may know</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {visible.map(s => {
           const sent = sentUserIds.has(s.user_id);
+          const reason = reasonFor(s);
           return (
             <View key={s.user_id} style={styles.card}>
               <Pressable
@@ -162,59 +168,51 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
                 accessibilityRole="link"
                 accessibilityLabel={`Open ${s.name}'s profile`}
               >
-                <View style={styles.avatarWrap}>
-                  {s.avatar_url ? (
-                    <Image source={{ uri: s.avatar_url }} style={styles.avatar} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarFallback]}>
-                      <Text style={styles.avatarInitials}>{initials(s.name)}</Text>
-                    </View>
-                  )}
+                {s.avatar_url ? (
+                  <Image source={{ uri: s.avatar_url }} style={styles.avatar} contentFit="cover" />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarInitials}>{initials(s.name)}</Text>
+                  </View>
+                )}
+                <View style={styles.textCol}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {s.name}
+                  </Text>
+                  {reason ? (
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {reason}
+                    </Text>
+                  ) : null}
                 </View>
-                <Text style={styles.name} numberOfLines={1}>
-                  {s.name}
-                </Text>
-                <Text style={styles.meta} numberOfLines={1}>
-                  {s.mutual_friends_count > 0
-                    ? `${s.mutual_friends_count} mutual friend${s.mutual_friends_count !== 1 ? 's' : ''}`
-                    : ' '}
-                </Text>
-                <Text style={styles.meta} numberOfLines={1}>
-                  {(s.shared_genres_count ?? 0) > 0
-                    ? `${s.shared_genres_count} shared genre${(s.shared_genres_count ?? 0) !== 1 ? 's' : ''}`
-                    : ' '}
-                </Text>
               </Pressable>
-              <TouchableOpacity
+              <PressableScale
+                haptic="light"
                 style={[styles.addBtn, sent && styles.addBtnSent]}
                 onPress={() => {
                   void onAddFriend(s.user_id);
                 }}
                 disabled={sent || sendingId === s.user_id}
+                hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel={sent ? 'Friend request sent' : `Add ${s.name}`}
               >
                 {sendingId === s.user_id ? (
                   <ActivityIndicator size="small" color={SynthTokens.colors.brandPink500} />
                 ) : sent ? (
-                  <>
-                    <Check size={14} color="#16a34a" />
-                    <Text style={styles.addBtnTextSent}>Sent</Text>
-                  </>
+                  <Check size={16} color="#16a34a" />
                 ) : (
-                  <>
-                    <UserPlus size={14} color={SynthTokens.colors.neutral600} />
-                    <Text style={styles.addBtnText}>Add</Text>
-                  </>
+                  <UserPlus size={16} color={SynthTokens.colors.brandPink500} />
                 )}
-              </TouchableOpacity>
+              </PressableScale>
               <Pressable
                 onPress={() => onDismissSuggestion(s.user_id)}
                 style={styles.dismissBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 2, right: 8 }}
                 accessibilityRole="button"
                 accessibilityLabel={`Dismiss ${s.name}`}
               >
-                <X size={16} color={SynthTokens.colors.neutral400} strokeWidth={2.25} />
+                <X size={14} color={SynthTokens.colors.neutral400} strokeWidth={2.25} />
               </Pressable>
             </View>
           );
@@ -224,136 +222,96 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
   );
 };
 
-const CARD_W = 148;
+/** Row cards: ~1.5 fit on a phone, so the rail reads as scrollable and costs one row of height. */
+const CARD_W = 260;
+const CARD_H = 64;
 
 const styles = StyleSheet.create({
   section: {
-    marginBottom: SynthTokens.spacing.md,
     marginTop: SynthTokens.spacing.xs,
+    marginBottom: SynthTokens.spacing.md,
   },
-  titleBlock: {
-    alignItems: 'center',
-    marginBottom: SynthTokens.spacing.sm,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: SynthTokens.colors.neutral900,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: '500',
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
     color: SynthTokens.colors.neutral600,
-    marginTop: 2,
+    paddingHorizontal: SynthTokens.spacing.md,
+    marginBottom: 8,
   },
   skeletonRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  skeletonCard: {
-    width: CARD_W,
-    height: 200,
-    borderRadius: 16,
-    backgroundColor: SynthTokens.colors.neutral100,
+    overflow: 'hidden',
   },
   row: {
-    // Centered when the cards fit; still scrolls from the first card when they do not.
-    flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: SynthTokens.spacing.md,
-    gap: 12,
-    paddingBottom: 8,
+    gap: 8,
   },
   card: {
     width: CARD_W,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.25)',
-    backgroundColor: '#FFFDFA',
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 10,
+    height: CARD_H,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#0E0E0E',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderRadius: 14,
+    backgroundColor: SynthTokens.colors.neutral0,
+    paddingLeft: 12,
+    paddingRight: 4,
+    // One depth cue: a hairline ring, no colored border.
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(14, 14, 14, 0.12)',
   },
   cardBody: {
-    width: '100%',
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  dismissBtn: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  avatarWrap: {
-    marginBottom: 8,
+    gap: 12,
+    height: '100%',
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   avatarFallback: {
-    backgroundColor: 'rgba(236, 72, 153, 0.12)',
+    backgroundColor: SynthTokens.colors.brandPink050,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '600',
     color: SynthTokens.colors.brandPink500,
   },
+  textCol: {
+    flex: 1,
+    minWidth: 0,
+  },
   name: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '500',
     color: SynthTokens.colors.neutral900,
-    textAlign: 'center',
-    width: '100%',
-    marginBottom: 4,
   },
   meta: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     color: SynthTokens.colors.neutral600,
-    textAlign: 'center',
-    width: '100%',
-    minHeight: 14,
   },
   addBtn: {
-    marginTop: 8,
-    flexDirection: 'row',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    width: '100%',
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    backgroundColor: SynthTokens.colors.neutral50,
+    backgroundColor: SynthTokens.colors.brandPink050,
+    marginLeft: 8,
   },
   addBtnSent: {
-    borderColor: '#86efac',
     backgroundColor: '#f0fdf4',
   },
-  addBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: SynthTokens.colors.neutral600,
-  },
-  addBtnTextSent: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16a34a',
+  dismissBtn: {
+    width: 28,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

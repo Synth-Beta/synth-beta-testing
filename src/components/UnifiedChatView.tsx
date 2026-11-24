@@ -94,6 +94,7 @@ import {
 } from '@synth/shared';
 import { getCurrentUserSettingsPreferences } from '@/services/userSettingsPreferencesService';
 import { Reply } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Chat Review Message wrapper — renders exactly like EventMessageCard (no chrome/header)
 const ChatReviewMessage: React.FC<{
@@ -243,6 +244,19 @@ function getChatViewCache(userId: string) {
     chatViewCache.eventImages.clear();
   }
   return chatViewCache;
+}
+
+/** Chat list timestamp: time today, weekday this week, otherwise a short date. */
+function formatChatListTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  const days = (now.getTime() - d.getTime()) / 86_400_000;
+  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'short' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false, onChatSelected }: UnifiedChatViewProps) => {
@@ -2549,118 +2563,67 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '12px var(--spacing-screen-margin-x, 20px) calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))' }}>
           <GenreChatsSection currentUserId={currentUserId} onNavigateToChat={(chatId) => void openChatById(chatId)} />
 
-          <section className="feed-banner" style={{ paddingLeft: 2, paddingRight: 2 }} aria-label="Your chats">
-            <h2>Your chats</h2>
-            <p>Friends, groups, and the shows you're going to.</p>
-          </section>
-
-          <button
-            type="button"
-            className="thread-btn thread-btn--interest"
-            style={{ margin: '4px 0 14px' }}
-            onClick={(e) => {
-              e.preventDefault();
-              setShowUserSearch(true);
-              setSelectedUsers([]);
-              setGroupName('');
-              setSearchQuery('');
-            }}
-          >
-            <Plus size={18} />
-            New Chat
-          </button>
+          <div className="flex items-center justify-between pb-1" style={{ paddingLeft: 2 }}>
+            <h2 className="m-0 text-[13px] font-semibold leading-8 text-[var(--neutral-600)]">Your chats</h2>
+            <button
+              type="button"
+              className="-mr-2 inline-flex h-8 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-[var(--brand-pink-500)] transition-colors hover:bg-[var(--brand-pink-050)]"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowUserSearch(true);
+                setSelectedUsers([]);
+                setGroupName('');
+                setSearchQuery('');
+              }}
+            >
+              <Plus size={16} />
+              New chat
+            </button>
+          </div>
 
           {chats.length === 0 ? (
-            <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-grouped, 24px)', padding: '28px 4px 12px' }}>
-              {/* New Chat Button - Already in header, but shown in empty state per Figma */}
-
-              {/* Empty State Content */}
-              <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                {/* Chat Bubble Icon - Large icon (60px), dark grey */}
-                <MessageCircle size={60} strokeWidth={2} style={{ color: chatFetchError ? 'var(--status-error-500)' : 'var(--neutral-600)' }} />
-
-                {/* Heading */}
-                <h2 style={{
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-body-size, 20px)',
-                  fontWeight: 'var(--typography-body-weight, 500)',
-                  lineHeight: 'var(--typography-body-line-height, 1.5)',
-                  color: 'var(--neutral-900)',
-                  margin: 0,
-                  textAlign: 'center'
-                }}>
-                  {chatFetchError ? 'Could not load conversations' : 'No Conversations Yet'}
-                </h2>
-
-                {/* Subtitle */}
-                <p style={{
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-meta-weight, 500)',
-                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  color: 'var(--neutral-600)',
-                  margin: 0,
-                  textAlign: 'center'
-                }}>
-                  {chatFetchError ? 'There was a problem loading your chats. Please try again.' : 'Start chatting with your friends!'}
-                </p>
-              </div>
-              
-              {/* Instructions Box */}
-              <div
-                className="swift-ui-card rounded-[12px] p-3 min-h-[110px] flex items-center justify-center"
-                style={{
-                  width: '100%',
-                  backgroundColor: 'var(--neutral-200) !important',
-                  border: '3px solid var(--overlay-20) !important'
-                }}
-              >
-                <div className="swift-ui-card-content">
-                  <ul className="list-disc space-y-0 ml-6" style={{ color: 'var(--neutral-900)' }}>
-                    <li className="mb-0">
-                      <span style={{ 
-                        fontFamily: 'var(--font-family)',
-                        color: 'var(--neutral-900)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                      }}>Send friend requests first</span>
-                    </li>
-                    <li className="mb-0">
-                      <span style={{ 
-                        fontFamily: 'var(--font-family)',
-                        color: 'var(--neutral-900)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                      }}>Wait for them to accept</span>
-                    </li>
-                    <li>
-                      <span style={{ 
-                        fontFamily: 'var(--font-family)',
-                        color: 'var(--neutral-900)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                      }}>Then start chatting!</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
+            <div className="flex flex-col items-center px-4 py-10 text-center">
+              <MessageCircle size={32} strokeWidth={1.75} style={{ color: chatFetchError ? 'var(--status-error-500)' : 'var(--neutral-400)' }} />
+              <h3 className="mt-3 text-[15px] font-semibold text-[var(--neutral-900)]">
+                {chatFetchError ? 'Could not load conversations' : 'No conversations yet'}
+              </h3>
+              <p className="mt-1 max-w-[260px] text-sm leading-5 text-[var(--neutral-600)]">
+                {chatFetchError ? 'Check your connection and try again.' : 'Once a friend accepts your request, you can message them here.'}
+              </p>
+              {!chatFetchError && (
+                <button
+                  type="button"
+                  className="mt-4 h-9 rounded-full bg-[var(--brand-pink-500)] px-4 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-[var(--brand-pink-600)] active:scale-[0.96]"
+                  onClick={() => {
+                    setShowUserSearch(true);
+                    setSelectedUsers([]);
+                    setGroupName('');
+                    setSearchQuery('');
+                  }}
+                >
+                  Start a chat
+                </button>
+              )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="-mx-2 flex flex-col">
               {chats.map((chat) => {
                 const genreMark = genreCommunityMark(chat.entity_type, chat.entity_id);
+                const isSelected = selectedChat?.id === chat.id;
                 return (
                 <div
                   key={chat.id}
-                  className="cursor-pointer"
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: 16,
-                    backgroundColor: selectedChat?.id === chat.id ? 'var(--neutral-100)' : 'var(--neutral-0)',
-                    border: '0.5px solid rgba(60, 60, 67, 0.1)',
+                  role="button"
+                  tabIndex={0}
+                  className={cn(
+                    'group flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2.5 transition-colors duration-150',
+                    isSelected ? 'bg-[var(--neutral-100)]' : 'hover:bg-[var(--neutral-50)]'
+                  )}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      e.currentTarget.click();
+                    }
                   }}
                   onClick={() => {
                     // Track chat open
@@ -2677,115 +2640,68 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     setShowUsersModal(false);
                     setSelectedChat(chat);
                   }}
-                  onMouseEnter={(e) => {
-                    if (selectedChat?.id !== chat.id) {
-                      e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedChat?.id !== chat.id) {
-                      e.currentTarget.style.backgroundColor = '#FFFDFA';
-                    }
-                  }}
                 >
-                    <div className="flex items-center gap-3">
-                      {/* Unread indicator - pink dot on far left, vertically centered */}
-                    {chat.has_unread ? (
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-pink-500)' }} />
-                      ) : (
-                        <div className="w-3 flex-shrink-0" />
-                      )}
-                      <div 
-                        className="flex-1 flex items-center gap-4 cursor-pointer min-w-0"
-                    >
-                      {genreMark ? (
-                        <div
-                          className="w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center"
-                          style={{
-                            backgroundColor: genreMark.background,
-                            border: `2px solid ${genreMark.outline}`,
-                            fontSize: 24,
-                            lineHeight: 1,
-                          }}
-                          aria-hidden="true"
-                        >
-                          {genreMark.emoji}
-                        </div>
-                      ) : (
-                      <Avatar className="w-12 h-12 flex-shrink-0">
-                          <AvatarImage 
-                            src={getChatAvatar(chat) || undefined} 
-                            alt={chat.is_group_chat 
-                              ? `${getChatDisplayName(chat)} group chat avatar`
-                              : `${getChatDisplayName(chat)}'s profile picture`} 
-                          />
-                        <AvatarFallback className="font-medium" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
-                            {chat.is_group_chat ? (
-                              <Users className="w-6 h-6" />
-                            ) : (
-                              getChatDisplayName(chat).split(' ').map(n => n[0]).join('')
-                            )}
-                          </AvatarFallback>
-                      </Avatar>
-                      )}
-                        <div className="flex-1 min-w-0">
-                          <div className="mb-1">
-                          <h3 className="font-semibold" style={{ 
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 'var(--typography-body-size, 20px)',
-                            fontWeight: 'var(--typography-body-weight, 500)',
-                            lineHeight: 'var(--typography-body-line-height, 1.5)',
-                            color: 'var(--neutral-900)',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            wordBreak: 'break-word'
-                          }}>
-                              {getChatDisplayName(chat)}
-                            </h3>
-                          </div>
-                        <p className="text-sm mb-1" style={{ 
-                          fontFamily: 'var(--font-family)',
-                          fontSize: 'var(--typography-meta-size, 16px)',
-                          fontWeight: 'var(--typography-meta-weight, 500)',
-                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                          color: 'var(--neutral-600)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          wordBreak: 'break-word'
-                        }}>
-                            {chat.latest_message || 'No messages yet'}
-                          </p>
-                          {chat.is_group_chat && chat.is_verified && (
-                            <div className="flex items-center gap-2 mt-2">
-                                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                                  <Shield className="w-3 h-3 mr-1" />
-                                  Verified {chat.entity_type ? chat.entity_type.charAt(0).toUpperCase() + chat.entity_type.slice(1) : 'Chat'}
-                                </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Do not delete immediately — open confirmation modal
-                          setChatPendingDeletion(chat);
-                          setIsDeleteChatModalOpen(true);
-                        }}
-                      className="hover:text-red-500 hover:bg-red-50 p-2 flex-shrink-0 rounded-lg transition duration-200" 
-                      style={{ color: 'var(--neutral-600)' }}
+                  <div className="relative shrink-0">
+                    {genreMark ? (
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-full text-[22px] leading-none"
+                        style={{ backgroundColor: genreMark.background }}
+                        aria-hidden="true"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        {genreMark.emoji}
+                      </div>
+                    ) : (
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={getChatAvatar(chat) || undefined} alt="" />
+                        <AvatarFallback className="bg-[var(--brand-pink-050)] text-sm font-medium text-[var(--brand-pink-500)]">
+                          {chat.is_group_chat ? (
+                            <Users className="h-5 w-5" />
+                          ) : (
+                            getChatDisplayName(chat).split(' ').map(n => n[0]).join('').slice(0, 2)
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <h3 className={cn('m-0 min-w-0 flex-1 truncate text-[15px] leading-5 text-[var(--neutral-900)]', chat.has_unread ? 'font-semibold' : 'font-medium')}>
+                        {getChatDisplayName(chat)}
+                      </h3>
+                      {chat.latest_message_created_at && (
+                        <span className={cn('shrink-0 text-xs tabular-nums', chat.has_unread ? 'font-semibold text-[var(--brand-pink-500)]' : 'text-[var(--neutral-400)]')}>
+                          {formatChatListTime(chat.latest_message_created_at)}
+                        </span>
+                      )}
                     </div>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <p className={cn('m-0 min-w-0 flex-1 truncate text-sm leading-5', chat.has_unread ? 'text-[var(--neutral-900)]' : 'text-[var(--neutral-600)]')}>
+                        {chat.is_group_chat && chat.is_verified && (
+                          <Shield className="mr-1 inline h-3.5 w-3.5 -translate-y-px text-[var(--neutral-400)]" aria-label="Verified chat" />
+                        )}
+                        {chat.latest_message || 'No messages yet'}
+                      </p>
+                      {chat.has_unread && (
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--brand-pink-500)]" aria-label="Unread" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Delete stays out of sight until the row is hovered or focused; touch screens always show it. */}
+                  <button
+                    type="button"
+                    aria-label={`Delete chat with ${getChatDisplayName(chat)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Do not delete immediately — open confirmation modal
+                      setChatPendingDeletion(chat);
+                      setIsDeleteChatModalOpen(true);
+                    }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--neutral-400)] transition-[opacity,color,background-color] duration-150 hover:bg-red-50 hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:hover)]:opacity-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
                 );
               })}
@@ -3071,8 +2987,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         ) : (
           /* Desktop empty state when no chat is selected */
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px', color: 'var(--neutral-500)' }}>
-            <MessageCircle size={48} strokeWidth={1.5} style={{ color: 'var(--neutral-300)' }} />
-            <p style={{ fontFamily: 'var(--font-family)', fontSize: '16px', fontWeight: 500, margin: 0, color: 'var(--neutral-500)' }}>
+            <MessageCircle size={40} strokeWidth={1.5} style={{ color: 'var(--neutral-400)' }} />
+            <p style={{ fontFamily: 'var(--font-family)', fontSize: '15px', fontWeight: 400, margin: 0, color: 'var(--neutral-600)' }}>
               Select a chat to start messaging
             </p>
           </div>
@@ -3089,7 +3005,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           }
           #chat-thread-panel {
             display: flex !important;
-            max-width: 780px !important;
           }
         }
         @media (min-width: 1024px) {

@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { X, UserPlus, Check, Verified } from 'lucide-react';
+import { X, UserPlus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { SkeletonFriendCard } from '@/components/skeleton/SkeletonFriendCard';
 import { hapticLight } from '@/utils/haptics';
 import { ProgressiveImage } from '@/components/ui/ProgressiveImage';
-import './feedBanner.css';
 
 export interface FriendSuggestion {
   user_id: string;
@@ -25,6 +22,8 @@ interface FriendSuggestionsRailProps {
   onUserClick?: (userId: string) => void;
   onDismiss?: () => void;
   onAddFriend?: (userId: string) => Promise<void>;
+  /** 'rail' scrolls sideways inside the feed; 'list' stacks rows for the desktop side panel. */
+  layout?: 'rail' | 'list';
 }
 
 /** How many suggestion cards to show at once; extras fill in when one is dismissed. */
@@ -35,7 +34,9 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   onUserClick,
   onDismiss,
   onAddFriend,
+  layout = 'rail',
 }) => {
+  const isList = layout === 'list';
   // Users to exclude from the list: already friends or pending (sent or received)
   const [excludedUserIds, setExcludedUserIds] = useState<Set<string>>(new Set());
   // Don't render until we've checked exclusions - prevents flash of wrong content (e.g. showing
@@ -145,18 +146,27 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
     .filter(s => !excludedUserIds.has(s.user_id) && !dismissedUserIds.has(s.user_id))
     .slice(0, VISIBLE_SUGGESTION_COUNT);
 
-  // While loading exclusions, show skeleton placeholders
+  // While loading exclusions, show skeletons the size of the real cards
   if (!exclusionsLoaded) {
     return (
-      <div className="flex w-full flex-col">
-        <section className={cn('feed-banner mb-3 w-full', !onDismiss && 'text-center')} aria-label="Who you should know">
-          <h2>Who You Should Know</h2>
-          <p>People you may know</p>
-        </section>
-        <div className="flex gap-3 px-1 pb-4 pt-1 overflow-hidden w-full justify-center">
-          <SkeletonFriendCard />
-          <SkeletonFriendCard />
-          <SkeletonFriendCard />
+      <div className="flex w-full flex-col" aria-busy="true">
+        <h2 className={cn('pb-2 text-[13px] font-semibold text-[var(--neutral-600)]', isList ? 'px-3' : 'px-4')}>People you may know</h2>
+        <div className={cn('flex gap-2 overflow-hidden', isList ? 'flex-col' : 'px-4 pb-3')}>
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className={cn(
+                'flex h-16 shrink-0 items-center gap-3 rounded-xl px-3',
+                isList ? 'w-full' : 'w-[264px] bg-[var(--neutral-0)] shadow-[0_0_0_1px_rgba(14,14,14,0.06)]'
+              )}
+            >
+              <div className="h-11 w-11 shrink-0 rounded-full animate-shimmer" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3.5 w-24 rounded-full animate-shimmer" />
+                <div className="h-3 w-16 rounded-full animate-shimmer" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -176,195 +186,114 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
       .slice(0, 2);
   };
 
+  /** One reason per person: mutual friends beat shared genres; friend-of-a-friend is the fallback. */
+  const reasonFor = (s: FriendSuggestion): string => {
+    if (s.mutual_friends_count > 0) {
+      return `${s.mutual_friends_count} mutual friend${s.mutual_friends_count !== 1 ? 's' : ''}`;
+    }
+    const genres = s.shared_genres_count ?? 0;
+    if (genres > 0) return `${genres} shared genre${genres !== 1 ? 's' : ''}`;
+    return s.connection_depth === 2 ? 'Friend of a friend' : '';
+  };
+
+  const renderCards = (cards: React.ReactNode) =>
+    isList ? (
+      <div className="flex flex-col">{cards}</div>
+    ) : (
+      // Right-edge fade: a cut-off card reads as "more to swipe", not as a layout bug.
+      <ScrollArea className="w-full [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)]">
+        <div className="flex w-max gap-2 px-4 pb-3">{cards}</div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    );
+
   return (
     <div className="flex w-full flex-col">
-      <section
-        className={cn('feed-banner mb-3 flex w-full items-start gap-3', onDismiss ? 'justify-between' : 'justify-center text-center')}
-        aria-label="Who you should know"
-      >
-        <div>
-          <h2>Who You Should Know</h2>
-          <p>People you may know</p>
-        </div>
+      <div className={cn('flex items-center justify-between pb-2', isList ? 'px-3' : 'px-4')}>
+        <h2 className="text-[13px] font-semibold text-[var(--neutral-600)]">People you may know</h2>
         {onDismiss && (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            aria-label="Hide suggestions"
             onClick={onDismiss}
-            className="h-8 w-8 shrink-0 p-0"
+            className="-mr-2 flex h-8 w-8 items-center justify-center rounded-full text-[var(--neutral-400)] transition-colors hover:text-[var(--neutral-600)]"
           >
             <X className="h-4 w-4" />
-          </Button>
+          </button>
         )}
-      </section>
+      </div>
 
-      {/* Horizontal Scrollable Rail */}
-      <ScrollArea className="w-full">
-        {/* w-max + mx-auto centers the row but still scrolls from the first card when it overflows */}
-        <div className="mx-auto flex w-max gap-1 px-2 pb-2">
-          {visibleSuggestions.map((suggestion) => {
+      {renderCards(visibleSuggestions.map((suggestion) => {
             const isSent = sentUserIds.has(suggestion.user_id);
             const isRemoving = removingUserIds.has(suggestion.user_id);
+            const reason = reasonFor(suggestion);
 
             return (
               <div
                 key={suggestion.user_id}
                 className={cn(
-                  // Layout
-                  "relative flex flex-col items-center min-w-[108px] max-w-[108px] px-2 py-3",
-                  // Interaction
-                  "group cursor-pointer select-none",
-                  "active:scale-[0.97] transition duration-300 ease-out",
-                  // Removal animation
-                  isRemoving && "opacity-0 scale-95 pointer-events-none"
+                  'flex h-16 shrink-0 cursor-pointer select-none items-center gap-2.5 rounded-xl pl-3 pr-1.5',
+                  // In the side panel the panel is the surface, so rows carry no ring of their own.
+                  isList
+                    ? 'w-full'
+                    : 'w-[264px] bg-[var(--neutral-0)] shadow-[0_0_0_1px_rgba(14,14,14,0.06),0_1px_2px_rgba(14,14,14,0.04)]',
+                  'transition-[opacity,transform,background-color] duration-200 ease-out hover:bg-[var(--neutral-50)]',
+                  isRemoving && 'pointer-events-none scale-95 opacity-0'
                 )}
                 onClick={() => onUserClick?.(suggestion.user_id)}
                 role="link"
+                aria-label={`Open ${suggestion.name}'s profile`}
               >
+                {/* No verified badge: suggestion.verified is is_public_profile, so it marked nearly everyone. */}
+                <Avatar className="h-11 w-11 shrink-0 overflow-hidden">
+                  {suggestion.avatar_url ? (
+                    <ProgressiveImage src={suggestion.avatar_url} alt="" className="h-11 w-11 rounded-full" />
+                  ) : (
+                    <AvatarFallback className="bg-synth-pink/10 text-sm text-synth-pink">
+                      {getInitials(suggestion.name)}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium leading-5 text-[var(--neutral-900)]">{suggestion.name}</p>
+                  {reason && <p className="truncate text-xs leading-4 text-[var(--neutral-600)]">{reason}</p>}
+                </div>
+
+                {onAddFriend && (
+                  <button
+                    type="button"
+                    aria-label={isSent ? `Request sent to ${suggestion.name}` : `Add ${suggestion.name}`}
+                    disabled={isSent}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddFriend(suggestion.user_id);
+                    }}
+                    className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-150 active:scale-[0.96]',
+                      isSent
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-[var(--brand-pink-050)] text-[var(--brand-pink-500)] hover:bg-[color-mix(in_srgb,var(--brand-pink-500)_14%,var(--neutral-0))]'
+                    )}
+                  >
+                    {isSent ? <Check className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                  </button>
+                )}
                 <button
                   type="button"
                   aria-label={`Dismiss ${suggestion.name}`}
-                  className="absolute top-0 right-0 z-10 flex items-center justify-center rounded-full"
-                  style={{
-                    width: 44,
-                    height: 44,
-                    color: 'var(--neutral-400)',
-                  }}
+                  className="flex h-8 w-7 shrink-0 items-center justify-center text-[var(--neutral-400)] transition-colors hover:text-[var(--neutral-600)]"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDismissSuggestion(suggestion.user_id);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <X className="h-4 w-4" strokeWidth={2.25} />
+                  <X className="h-3.5 w-3.5" strokeWidth={2.25} />
                 </button>
-
-                {/* Avatar */}
-                <div className="relative mb-2 mt-1">
-                  <Avatar className={cn(
-                    "h-20 w-20 ring-2 transition duration-300 overflow-hidden",
-                    isSent
-                      ? "ring-green-500/50"
-                      : "ring-black/10"
-                  )}>
-                    {suggestion.avatar_url ? (
-                      <ProgressiveImage
-                        src={suggestion.avatar_url}
-                        alt={suggestion.name}
-                        className="h-20 w-20 rounded-full"
-                      />
-                    ) : (
-                      <AvatarFallback className="bg-synth-pink/10 text-synth-pink text-base">
-                        {getInitials(suggestion.name)}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  {suggestion.verified && (
-                    <div className="absolute -bottom-1 -right-1 bg-synth-pink rounded-full p-0.5">
-                      <Verified className="h-3 w-3 text-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Name */}
-                <p className="text-sm font-medium text-synth-black text-center truncate w-full mb-1">
-                  {suggestion.name}
-                </p>
-
-                {/* Connection info */}
-                <div
-                  className="text-center space-y-0.5"
-                  style={{
-                    fontSize: 'var(--typography-meta-size)',
-                    fontWeight: 'var(--typography-meta-weight)',
-                    lineHeight: 'var(--typography-meta-line-height)',
-                    color: 'var(--neutral-600)',
-                  }}
-                >
-                  {(() => {
-                    const mutualText =
-                      suggestion.mutual_friends_count > 0
-                        ? `${suggestion.mutual_friends_count} mutual friend${suggestion.mutual_friends_count !== 1 ? 's' : ''}`
-                        : '';
-                    const sharedGenresCount = suggestion.shared_genres_count ?? 0;
-                    const sharedText =
-                      sharedGenresCount > 0
-                        ? `${sharedGenresCount} shared genre${sharedGenresCount !== 1 ? 's' : ''}`
-                        : '';
-
-                    const metaPStyle: React.CSSProperties = {
-                      margin: 0,
-                      fontSize: 'var(--typography-meta-size)',
-                      fontWeight: 'var(--typography-meta-weight)',
-                      lineHeight: 'var(--typography-meta-line-height)',
-                      color: 'var(--neutral-600)',
-                    };
-
-                    // Always reserve space for 2 lines so the Add buttons align across cards.
-                    return (
-                      <>
-                        <div
-                          style={{
-                            ...metaPStyle,
-                            // Reserve exactly 2 lines of height (top-aligned), clamp longer text.
-                            minHeight: '2lh',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {mutualText || '\u00A0'}
-                        </div>
-                        <p
-                          style={{
-                            ...metaPStyle,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {sharedText || '\u00A0'}
-                        </p>
-                      </>
-                    );
-                  })()}
-                </div>
-
-                {/* Add friend button */}
-                {onAddFriend && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={cn(
-                      "mt-2 h-7 text-xs w-full transition-colors duration-200",
-                      isSent && "border-green-500 bg-green-50 text-green-600 hover:bg-green-50 hover:text-green-600 hover:border-green-500"
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddFriend(suggestion.user_id);
-                    }}
-                    disabled={isSent}
-                  >
-                    {isSent ? (
-                      <>
-                        <Check className="h-3 w-3 mr-1" />
-                        Sent
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="h-3 w-3 mr-1" />
-                        Add
-                      </>
-                    )}
-                  </Button>
-                )}
               </div>
             );
-          })}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+          }))}
     </div>
   );
 };

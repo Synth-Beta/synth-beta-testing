@@ -214,21 +214,14 @@ function SignupNamesTooltip({
   );
 }
 
-// Shape returned by get_admin_app_metrics (supabase/migrations/20261020120000_admin_app_metrics.sql).
+// Shape returned by get_admin_app_metrics (supabase/migrations/20261124120000_admin_app_metrics_user_counts.sql).
 type AppMetrics = {
-  opens_since: string | null;
-  open_dau: number;
-  open_wau: number;
-  open_mau: number;
-  week1_nudges_7d: number;
-  week1_nudges_read_7d: number;
-  public_reviews_7d: number;
-  public_reviews_total: number;
-  reviews_hiding_price: number;
-  artist_exclusions: number;
-  users_hiding_artists: number;
-  newsletter_subscribed: number;
-  calendar_opens_7d: number;
+  total_users: number;
+  bots: number;
+  real_users: number;
+  onboarded: number;
+  not_onboarded: number;
+  active_7d: number;
 };
 
 export default function Admin() {
@@ -2503,37 +2496,31 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* App 1.5: web + mobile app opens and the new Home / Community / Calendar features */}
+                {/* Who the users are: bots vs real, and how many real users finished onboarding */}
                 {appMetrics && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">
-                      App (web + mobile)
-                      {appMetrics.opens_since && ` · opens tracked since ${format(new Date(appMetrics.opens_since), 'MMM d')}`}
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Users · all time</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {[
-                        { label: 'Opened today', value: appMetrics.open_dau, note: 'Unique users, 24h' },
-                        { label: 'Opened this week', value: appMetrics.open_wau, note: 'Unique users, 7d' },
-                        { label: 'Opened this month', value: appMetrics.open_mau, note: 'Unique users, 30d' },
+                        { label: 'Total accounts', value: appMetrics.total_users, note: 'Everyone, bots included' },
+                        { label: 'Real users', value: appMetrics.real_users, note: 'Bots excluded' },
+                        { label: 'Bots', value: appMetrics.bots, note: 'Marked is_bot' },
                         {
-                          label: 'Week-1 nudges',
-                          value: appMetrics.week1_nudges_7d,
-                          note: `${appMetrics.week1_nudges_read_7d} read (7d)`,
+                          label: 'Finished onboarding',
+                          value: appMetrics.onboarded,
+                          note: appMetrics.real_users
+                            ? `${Math.round((appMetrics.onboarded / appMetrics.real_users) * 100)}% of real users`
+                            : 'Real users',
                         },
-                        {
-                          label: 'Public reviews',
-                          value: appMetrics.public_reviews_7d,
-                          note: `This week · ${appMetrics.public_reviews_total.toLocaleString()} total in Community`,
-                        },
-                        { label: 'Newsletter subscribers', value: appMetrics.newsletter_subscribed, note: 'The Synth Setlist' },
-                        { label: 'Calendar opens', value: appMetrics.calendar_opens_7d, note: 'Web side menu (7d)' },
+                        { label: 'Still onboarding', value: appMetrics.not_onboarded, note: 'Real users, not finished' },
+                        { label: 'Active this week', value: appMetrics.active_7d, note: 'Real users who opened the app, 7d' },
                       ].map((m) => (
                         <Card key={m.label} className="shadow-sm">
                           <CardHeader className="p-3 pb-1">
                             <CardTitle className="text-xs font-medium text-muted-foreground">{m.label}</CardTitle>
                           </CardHeader>
                           <CardContent className="p-3 pt-0">
-                            <div className="text-lg font-bold">{m.value.toLocaleString()}</div>
+                            <div className="text-lg font-bold">{(m.value ?? 0).toLocaleString()}</div>
                             <p className="text-xs text-muted-foreground">{m.note}</p>
                           </CardContent>
                         </Card>
