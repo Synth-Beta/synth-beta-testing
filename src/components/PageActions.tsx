@@ -45,6 +45,8 @@ export const PageActions: React.FC<PageActionsProps> = ({
         // Check if ANY chat has unread messages
         for (const chat of chats) {
           if (cancelled) break;
+          // Rooms (genre/event/artist/venue) get daily automated posts; they don't light the dot.
+          if ((chat as { entity_type?: string | null }).entity_type) continue;
 
           const lastReadAt = lastReadMap.get(chat.id);
           

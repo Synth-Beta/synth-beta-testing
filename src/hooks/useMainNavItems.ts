@@ -80,10 +80,14 @@ export function useMainNavItems({
     }
 
     try {
-      const { data: participantData } = await supabase
+      // DMs and group chats only: genre/event/artist/venue rooms (entity_type set) get
+      // daily automated posts, so counting them kept the dot on after everything was read.
+      const { data: participantData, error: partError } = await supabase
         .from('chat_participants')
-        .select('chat_id, last_read_at')
-        .eq('user_id', currentUser.id);
+        .select('chat_id, last_read_at, chats!inner(entity_type)')
+        .eq('user_id', currentUser.id)
+        .is('chats.entity_type', null);
+      if (partError) return; // keep the last known badge
 
       if (!participantData || participantData.length === 0) {
         setUnreadMessagesCount(0);

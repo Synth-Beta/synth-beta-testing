@@ -24,20 +24,30 @@ export function useUnreadMessageCount(userId: string | undefined): number {
       const run = ++latestRun;
       const write = (n: number) => { if (run === latestRun) setCount(n); };
       try {
-        // One grouped query; falls back to per-chat counts if the RPC isn't deployed yet.
-        const { data: counts, error: rpcError } = await supabase.rpc('get_my_chat_unread_counts');
-        if (!rpcError && Array.isArray(counts)) {
-          write(counts.reduce((sum: number, r: { unread_count: number | string }) => sum + Number(r.unread_count || 0), 0));
-          return;
-        }
-
-        const { data: participantData } = await supabase
+        // DMs and group chats only. Genre/event/artist/venue rooms (entity_type set) get
+        // daily automated posts and have no unread marker in the list, so counting them
+        // kept the dot on after every conversation was read.
+        const { data: participantData, error: partError } = await supabase
           .from('chat_participants')
-          .select('chat_id, last_read_at')
-          .eq('user_id', userId);
+          .select('chat_id, last_read_at, chats!inner(entity_type)')
+          .eq('user_id', userId)
+          .is('chats.entity_type', null);
+        if (partError) return; // keep the last known badge
 
         if (!participantData?.length) {
           write(0);
+          return;
+        }
+        const chatIds = new Set(participantData.map((p) => p.chat_id));
+
+        // One grouped query; falls back to per-chat counts if the RPC isn't deployed yet.
+        const { data: counts, error: rpcError } = await supabase.rpc('get_my_chat_unread_counts');
+        if (!rpcError && Array.isArray(counts)) {
+          write(
+            counts
+              .filter((r: { chat_id: string }) => chatIds.has(r.chat_id))
+              .reduce((sum: number, r: { unread_count: number | string }) => sum + Number(r.unread_count || 0), 0),
+          );
           return;
         }
 
