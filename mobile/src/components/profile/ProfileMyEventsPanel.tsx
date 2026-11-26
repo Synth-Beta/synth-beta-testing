@@ -249,7 +249,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
               <View style={styles.compactRatingRow}>
                 <HalfStarDisplay rating={rv} />
                 <SynthText variant="meta" color="secondary" style={styles.compactStarNum}>
-                  {Math.round(rv * 10) / 10}★
+                  {Math.round(rv * 10) / 10}
                 </SynthText>
               </View>
             ) : (
@@ -322,7 +322,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
     const titleBlock = hideTitleBlock ? null : (
       <View style={styles.titleBlock}>
         <SynthText variant="h2" style={styles.myEventsTitle}>
-          My Events
+          My events
         </SynthText>
         <SynthText variant="meta" color="secondary" style={styles.viewModeLbl}>
           View mode:

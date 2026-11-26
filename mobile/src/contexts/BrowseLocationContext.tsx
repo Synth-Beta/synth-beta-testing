@@ -37,7 +37,7 @@ interface BrowseLocationContextValue {
 
 const BrowseLocationContext = createContext<BrowseLocationContextValue>({
   coords: null,
-  label: 'Your Location',
+  label: 'Your location',
   radiusMiles: DEFAULT_RADIUS_MILES,
   isManual: false,
   loading: true,
@@ -51,7 +51,7 @@ const BrowseLocationContext = createContext<BrowseLocationContextValue>({
  */
 export function BrowseLocationProvider({ children, enabled = true }: { children: React.ReactNode; enabled?: boolean }) {
   const [coords, setCoords] = useState<LatLng | null>(null);
-  const [label, setLabel] = useState('Your Location');
+  const [label, setLabel] = useState('Your location');
   const [radiusMiles, setRadiusMiles] = useState(DEFAULT_RADIUS_MILES);
   const [isManual, setIsManual] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -66,7 +66,7 @@ export function BrowseLocationProvider({ children, enabled = true }: { children:
     const resolved = resolveLocation({ live });
     if (!resolved) {
       setCoords(null);
-      setLabel('Your Location');
+      setLabel('Your location');
       return;
     }
     setCoords(resolved);

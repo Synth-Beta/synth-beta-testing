@@ -102,11 +102,11 @@ export default function SettingsSecurityScreen() {
               <AtSign size={18} color="#3b82f6" />
             </View>
             <View style={styles.sectionHeadText}>
-              <Text style={styles.sectionTitle}>Change Email</Text>
+              <Text style={styles.sectionTitle}>Change email</Text>
               <SynthText variant="meta" color="secondary">You'll receive a confirmation at the new address</SynthText>
             </View>
           </View>
-          <SynthText variant="meta" color="secondary" style={styles.inputLabel}>New Email Address</SynthText>
+          <SynthText variant="meta" color="secondary" style={styles.inputLabel}>New email address</SynthText>
           <TextInput
             value={newEmail}
             onChangeText={setNewEmail}
@@ -129,7 +129,7 @@ export default function SettingsSecurityScreen() {
             {changingEmail ? (
               <ActivityIndicator color={SynthTokens.colors.neutral0} />
             ) : (
-              <Text style={styles.actionBtnTxt}>Send Confirmation Email</Text>
+              <Text style={styles.actionBtnTxt}>Send confirmation email</Text>
             )}
           </Pressable>
         </View>
@@ -143,7 +143,7 @@ export default function SettingsSecurityScreen() {
               <Key size={18} color="#6366f1" />
             </View>
             <View style={styles.sectionHeadText}>
-              <Text style={styles.sectionTitle}>Reset Password</Text>
+              <Text style={styles.sectionTitle}>Reset password</Text>
               <SynthText variant="meta" color="secondary">A reset link will be sent to your email</SynthText>
             </View>
           </View>
@@ -155,7 +155,7 @@ export default function SettingsSecurityScreen() {
             {resettingPassword ? (
               <ActivityIndicator color={SynthTokens.colors.neutral900} />
             ) : (
-              <Text style={styles.outlineBtnTxt}>Send Password Reset Link</Text>
+              <Text style={styles.outlineBtnTxt}>Send password reset link</Text>
             )}
           </Pressable>
         </View>

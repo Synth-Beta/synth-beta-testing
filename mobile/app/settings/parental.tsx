@@ -112,7 +112,7 @@ export default function ParentalControlsScreen() {
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
             <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
           </Pressable>
-          <Text style={styles.title}>Parental Controls</Text>
+          <Text style={styles.title}>Parental controls</Text>
           <View style={styles.iconBtn} />
         </View>
         <View style={styles.centered}>
@@ -130,7 +130,7 @@ export default function ParentalControlsScreen() {
         <Pressable onPress={() => router.back()} style={styles.iconBtn} accessibilityLabel="Back">
           <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
         </Pressable>
-        <Text style={styles.title}>Parental Controls</Text>
+        <Text style={styles.title}>Parental controls</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -139,7 +139,7 @@ export default function ParentalControlsScreen() {
         <View style={styles.topRow}>
           <Shield size={22} color={PINK} />
           <View style={styles.topText}>
-            <Text style={styles.pageTitle}>Parental Controls</Text>
+            <Text style={styles.pageTitle}>Parental controls</Text>
             <SynthText variant="meta" color="secondary">
               Manage safety settings and content restrictions for your account
             </SynthText>
@@ -150,7 +150,7 @@ export default function ParentalControlsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Shield size={18} color={PINK} />
-            <Text style={styles.cardTitle}>Age Verification</Text>
+            <Text style={styles.cardTitle}>Age verification</Text>
           </View>
           <SynthText variant="meta" color="secondary" style={styles.cardDesc}>
             Your age verification status and account safety settings
@@ -161,7 +161,7 @@ export default function ParentalControlsScreen() {
             {ageVerified
               ? <CheckCircle size={18} color="#16a34a" />
               : <Calendar size={18} color={SynthTokens.colors.neutral400} />}
-            <Text style={styles.ageRowLabel}>Age Verified</Text>
+            <Text style={styles.ageRowLabel}>Age verified</Text>
             <View style={[styles.ageBadge, ageVerified ? styles.ageBadgeVerified : styles.ageBadgeNot]}>
               <Text style={[styles.ageBadgeTxt, ageVerified ? styles.ageBadgeTxtVerified : styles.ageBadgeTxtNot]}>
                 {ageVerified ? 'Verified' : 'Not Verified'}
@@ -172,7 +172,7 @@ export default function ParentalControlsScreen() {
           {/* Age display */}
           {age !== null ? (
             <View style={styles.ageInfoRow}>
-              <Text style={styles.ageInfoLabel}>Your Age</Text>
+              <Text style={styles.ageInfoLabel}>Your age</Text>
               <Text style={styles.ageInfoValue}>{age} years old</Text>
             </View>
           ) : null}
@@ -212,7 +212,7 @@ export default function ParentalControlsScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Shield size={18} color={PINK} />
-                <Text style={styles.cardTitle}>Safety Controls</Text>
+                <Text style={styles.cardTitle}>Safety controls</Text>
               </View>
               <SynthText variant="meta" color="secondary" style={styles.cardDesc}>
                 {isMinor
@@ -226,7 +226,7 @@ export default function ParentalControlsScreen() {
                   <MessageSquare size={18} color="#9333ea" />
                 </View>
                 <View style={styles.itemText}>
-                  <Text style={styles.itemLabel}>Restrict Direct Messages</Text>
+                  <Text style={styles.itemLabel}>Restrict direct messages</Text>
                   <SynthText variant="meta" color="secondary" style={styles.itemDesc}>
                     Only allow DMs from users you follow back
                   </SynthText>
@@ -251,7 +251,7 @@ export default function ParentalControlsScreen() {
                     : <EyeOff size={18} color="#ca8a04" />}
                 </View>
                 <View style={styles.itemText}>
-                  <Text style={styles.itemLabel}>Private Account</Text>
+                  <Text style={styles.itemLabel}>Private account</Text>
                   <SynthText variant="meta" color="secondary" style={styles.itemDesc}>
                     Only approved followers can view your profile
                   </SynthText>
@@ -271,7 +271,7 @@ export default function ParentalControlsScreen() {
             <View style={styles.infoCard}>
               <Info size={16} color="#3b82f6" style={{ marginTop: 1, flexShrink: 0 }} />
               <View style={styles.infoText}>
-                <Text style={styles.infoTitle}>About Parental Controls</Text>
+                <Text style={styles.infoTitle}>About parental controls</Text>
                 <SynthText variant="meta" style={styles.infoBody}>
                   These controls help protect your account by restricting who can contact you and what content you see.
                   {isMinor ? ' As an account under 18, these controls are automatically enabled for your safety.' : ''}
@@ -282,7 +282,7 @@ export default function ParentalControlsScreen() {
         ) : (
           <View style={styles.emptyCard}>
             <Shield size={44} color={SynthTokens.colors.neutral400} />
-            <Text style={styles.emptyTitle}>Parental Controls Not Enabled</Text>
+            <Text style={styles.emptyTitle}>Parental controls not enabled</Text>
             <SynthText variant="meta" color="secondary" style={styles.emptyDesc}>
               Parental controls are available for accounts under 18 or can be manually enabled to restrict DMs and make your profile private.
             </SynthText>
@@ -291,7 +291,7 @@ export default function ParentalControlsScreen() {
               onPress={() => void handleToggle('parental_controls_enabled', true)}
               disabled={saving}
             >
-              <Text style={styles.enableBtnTxt}>Enable Parental Controls</Text>
+              <Text style={styles.enableBtnTxt}>Enable parental controls</Text>
             </Pressable>
           </View>
         )}

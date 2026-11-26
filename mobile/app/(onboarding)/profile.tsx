@@ -523,7 +523,7 @@ export default function ProfileSetupScreen() {
     const usernameHint = (() => {
         switch (usernameStatus) {
             case 'checking': return { text: 'Checking…', color: SynthTokens.colors.neutral600 };
-            case 'available': return { text: '✓ Username available', color: '#16a34a' };
+            case 'available': return { text: 'Username available', color: '#16a34a' };
             case 'taken': return { text: 'Username already taken', color: '#dc2626' };
             case 'error': return { text: "Couldn't check availability. We'll verify when you continue.", color: SynthTokens.colors.neutral600 };
             case 'invalid': return { text: 'Only letters, numbers, _ and . allowed (3–30 chars)', color: '#dc2626' };
@@ -702,7 +702,7 @@ export default function ProfileSetupScreen() {
 
                     {showContactEmailField && (
                         <View style={styles.fieldBlock}>
-                            <Text style={styles.label}>Contact Email</Text>
+                            <Text style={styles.label}>Contact email</Text>
                             <TextInput
                                 style={[styles.input, contactEmailError ? styles.inputError : null]}
                                 value={contactEmail}

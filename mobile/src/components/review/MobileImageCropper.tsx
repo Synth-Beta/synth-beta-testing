@@ -142,7 +142,7 @@ export function MobileImageCropper({ visible, imageUri, initial, onDone, onCance
                     <Pressable onPress={onCancel} style={styles.headerBtn}>
                         <X size={22} color={SynthTokens.colors.neutral900} />
                     </Pressable>
-                    <SynthText variant="accent">Crop Thumbnail</SynthText>
+                    <SynthText variant="accent">Crop thumbnail</SynthText>
                     <Pressable onPress={handleDone} style={styles.doneBtn}>
                         <Check size={20} color="#FFFDFA" />
                         <SynthText variant="meta" style={styles.doneTxt}>Done</SynthText>

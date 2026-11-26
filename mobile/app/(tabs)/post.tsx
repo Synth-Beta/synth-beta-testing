@@ -19,7 +19,7 @@ export default function PostScreen() {
           router.replace('/(tabs)');
           return;
         }
-        Alert.alert('Thanks!', 'Your review was posted.', [
+        Alert.alert('Review posted', 'Thanks for sharing how the show went.', [
           {
             text: 'Done',
             onPress: () => (eid ? router.replace(`/event/${eid}`) : router.replace('/(tabs)')),

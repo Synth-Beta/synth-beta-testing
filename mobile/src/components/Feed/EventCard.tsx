@@ -312,7 +312,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           {isPast ? (
             <PressableScale onPress={onWriteReview} style={styles.writeReviewBtn}>
               <Star size={18} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
-              <Text style={styles.writeReviewBtnTxt}>Write Review</Text>
+              <Text style={styles.writeReviewBtnTxt}>Write review</Text>
             </PressableScale>
           ) : (
             <PressableScale

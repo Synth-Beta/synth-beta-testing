@@ -134,7 +134,7 @@ export default function SecretAdminScreen() {
         <View style={styles.heroIcon}>
           <Shield size={28} color={SynthTokens.colors.brandPink500} />
         </View>
-        <Text style={styles.heading}>Synth Admin</Text>
+        <Text style={styles.heading}>Synth admin</Text>
         <Text style={styles.copy}>
           Opens the same admin portal as desktop (getsynth.app/admin) with the
           full ops dashboard.
@@ -151,7 +151,7 @@ export default function SecretAdminScreen() {
           ) : (
             <>
               <ExternalLink size={18} color="#FFFDFA" />
-              <Text style={styles.primaryBtnText}>Open Admin Portal</Text>
+              <Text style={styles.primaryBtnText}>Open admin portal</Text>
             </>
           )}
         </Pressable>

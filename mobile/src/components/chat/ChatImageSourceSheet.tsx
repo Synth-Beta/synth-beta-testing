@@ -68,11 +68,11 @@ export function ChatImageSourceSheet({ visible, onClose, onChoose }: ChatImageSo
             <View style={[styles.sheet, { paddingBottom: overlaySheetBottomPadding(insets.bottom) }]}>
                 <View style={styles.handle} />
                 <SynthText variant="h2" style={styles.title}>
-                    Send Image
+                    Send image
                 </SynthText>
                 <Pressable style={styles.option} onPress={() => choose('camera')}>
                     <Camera size={22} color={PINK} />
-                    <Text style={styles.optionText}>Take Photo</Text>
+                    <Text style={styles.optionText}>Take photo</Text>
                 </Pressable>
                 <Pressable style={styles.option} onPress={() => choose('library')}>
                     <ImageIcon size={22} color={PINK} />

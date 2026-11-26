@@ -256,7 +256,7 @@ export function MobileAttendeeSelector({ value, onChange, userId, metOnSynth, on
                     />
                     <View style={styles.phoneButtons}>
                         <Pressable style={styles.phoneAddBtn} onPress={addPhone} disabled={!phoneNum.trim()}>
-                            <SynthText variant="meta" style={styles.phoneAddTxt}>Add Contact</SynthText>
+                            <SynthText variant="meta" style={styles.phoneAddTxt}>Add contact</SynthText>
                         </Pressable>
                         <Pressable onPress={() => { setShowPhone(false); setPhoneNum(''); setPhoneName(''); }}>
                             <SynthText variant="meta" color="secondary">Cancel</SynthText>

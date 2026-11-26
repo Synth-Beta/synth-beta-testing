@@ -363,7 +363,7 @@ export default function ProfileEditScreen() {
         <View style={styles.card}>
           <View style={styles.sectionHead}>
             <Music size={18} color={PINK} />
-            <Text style={styles.sectionTitle}>Music Taste</Text>
+            <Text style={styles.sectionTitle}>Music taste</Text>
           </View>
           <SynthText variant="meta" color="secondary" style={styles.sectionSub}>
             Select genres you love — helps personalize your event feed.
@@ -401,7 +401,7 @@ export default function ProfileEditScreen() {
           </View>
           <View style={styles.notifRow}>
             <View style={styles.notifText}>
-              <Text style={styles.notifLabel}>Similar Users Notifications</Text>
+              <Text style={styles.notifLabel}>Similar users notifications</Text>
               <SynthText variant="meta" color="secondary" style={styles.notifDesc}>
                 Get notified when similar users (age, gender, interests) show interest in events
               </SynthText>

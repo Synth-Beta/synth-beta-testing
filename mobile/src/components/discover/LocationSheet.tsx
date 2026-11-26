@@ -171,7 +171,7 @@ export function LocationSheet({
         <View style={[styles.sheet, { paddingBottom: sheetPaddingBottom }]}>
           <View style={styles.handle} />
           <SynthText variant="h2" style={styles.title}>
-            Set Location
+            Set location
           </SynthText>
           <SynthText variant="meta" color="secondary" style={styles.subtitle}>
             Pin a city or use your current spot to shape the Discover calendar.

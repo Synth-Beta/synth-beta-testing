@@ -38,14 +38,14 @@ interface Breakdown {
 }
 
 const CRITERIA_META: Record<keyof TrustCriteria, { label: string; description: string; target: string }> = {
-  profileComplete:      { label: 'Complete Profile',    description: 'Name, bio, avatar, birthday, and gender',   target: 'All fields filled' },
-  streamingConnected:   { label: 'Streaming Account',   description: 'Connect Spotify or Apple Music',            target: 'Connected' },
-  hasReviews:           { label: 'Event Reviews',       description: 'Share your concert experiences',             target: '3+ reviews' },
-  hasFriends:           { label: 'Friend Network',      description: 'Connect with other users',                   target: '10+ friends' },
-  hasEvents:            { label: 'Event Interests',     description: 'Mark events as interested or going',         target: '10+ events' },
-  accountAge:           { label: 'Account Age',         description: 'Be an active community member',              target: '30+ days' },
-  emailVerified:        { label: 'Email Verified',      description: 'Verify your email address',                  target: 'Verified' },
-  hasAttended:          { label: 'Event Attendance',    description: 'Attend and review concerts',                 target: '3+ attended' },
+  profileComplete:      { label: 'Complete profile',    description: 'Name, bio, avatar, birthday, and gender',   target: 'All fields filled' },
+  streamingConnected:   { label: 'Streaming account',   description: 'Connect Spotify or Apple Music',            target: 'Connected' },
+  hasReviews:           { label: 'Event reviews',       description: 'Share your concert experiences',             target: '3+ reviews' },
+  hasFriends:           { label: 'Friend network',      description: 'Connect with other users',                   target: '10+ friends' },
+  hasEvents:            { label: 'Event interests',     description: 'Mark events as interested or going',         target: '10+ events' },
+  accountAge:           { label: 'Account age',         description: 'Be an active community member',              target: '30+ days' },
+  emailVerified:        { label: 'Email verified',      description: 'Verify your email address',                  target: 'Verified' },
+  hasAttended:          { label: 'Event attendance',    description: 'Attend and review concerts',                 target: '3+ attended' },
 };
 
 async function fetchBreakdown(userId: string, emailConfirmedAt: string | null): Promise<Breakdown> {
@@ -161,7 +161,7 @@ export default function VerificationSettingsScreen() {
             <View style={styles.verifiedBanner}>
               <Sparkles size={22} color={GREEN} />
               <View style={styles.bannerText}>
-                <Text style={[styles.bannerTitle, { color: '#065f46' }]}>Verified Account</Text>
+                <Text style={[styles.bannerTitle, { color: '#065f46' }]}>Verified account</Text>
                 <SynthText variant="meta" style={{ color: '#047857' }}>
                   You've met the trust criteria for Synth verification.
                 </SynthText>
@@ -171,7 +171,7 @@ export default function VerificationSettingsScreen() {
             <View style={styles.pendingBanner}>
               <View style={styles.bannerText}>
                 <Text style={[styles.bannerTitle, { color: SynthTokens.colors.neutral900 }]}>
-                  Verification Progress
+                  Verification progress
                 </Text>
                 <SynthText variant="meta" color="secondary">
                   Meet {Math.max(0, 4 - breakdown.criteriaMet)} more criteria to become verified.
@@ -188,7 +188,7 @@ export default function VerificationSettingsScreen() {
                 <Text style={styles.scoreLabel}>/ 100</Text>
               </View>
               <View style={styles.scoreRight}>
-                <Text style={styles.scoreTitle}>Trust Score</Text>
+                <Text style={styles.scoreTitle}>Trust score</Text>
                 <SynthText variant="meta" color="secondary">
                   {breakdown.criteriaMet} of {breakdown.totalCriteria} criteria met
                 </SynthText>
@@ -202,7 +202,7 @@ export default function VerificationSettingsScreen() {
 
           {/* Criteria list */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Criteria Checklist</Text>
+            <Text style={styles.cardTitle}>Criteria checklist</Text>
             {(Object.keys(CRITERIA_META) as (keyof TrustCriteria)[]).map((key, i, arr) => {
               const met = breakdown.criteria[key];
               const meta = CRITERIA_META[key];

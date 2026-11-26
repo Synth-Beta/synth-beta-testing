@@ -123,7 +123,7 @@ export default function NewChatScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
                     <ArrowLeft size={22} color={SynthTokens.colors.neutral900} />
                 </Pressable>
-                <SynthText variant="h2" style={styles.title}>New Chat</SynthText>
+                <SynthText variant="h2" style={styles.title}>New chat</SynthText>
                 <View style={styles.backBtn} />
             </View>
 
@@ -183,7 +183,7 @@ export default function NewChatScreen() {
             ) : filteredFriends.length === 0 ? (
                 <View style={styles.center}>
                     <SynthText variant="meta" color="secondary">
-                        {friends.length === 0 ? 'No friends yet. Add friends first!' : 'No results.'}
+                        {friends.length === 0 ? 'No friends yet. Add a friend to start a chat.' : 'No results.'}
                     </SynthText>
                 </View>
             ) : (

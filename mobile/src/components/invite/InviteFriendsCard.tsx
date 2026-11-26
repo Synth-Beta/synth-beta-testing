@@ -238,7 +238,7 @@ function ContactList({ onPick }: { onPick: (c: PhoneContact) => void }) {
           Synth needs access to your contacts to text an invite. Your contacts stay on your phone.
         </SynthText>
         <Pressable style={styles.primary} onPress={() => void Linking.openSettings()}>
-          <Text style={styles.primaryTxt}>Open Settings</Text>
+          <Text style={styles.primaryTxt}>Open settings</Text>
         </Pressable>
       </View>
     );

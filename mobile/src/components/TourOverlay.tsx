@@ -54,7 +54,7 @@ const STEPS: Record<TourStepId, StepDef> = {
     action: 'review',
     title: 'Review a show',
     body: 'Been to a show lately? Tap the pink + to rate it and say what stood out.',
-    done: 'Review posted. Nice!',
+    done: 'Review posted',
   },
   messages: {
     route: '/(tabs)/chat',

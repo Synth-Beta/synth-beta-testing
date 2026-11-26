@@ -47,7 +47,7 @@ const VIBES: Array<{
   },
   {
     id: 'this-weekend',
-    title: 'This Weekend',
+    title: 'This weekend',
     description: 'Plan your weekend with curated upcoming shows.',
   },
   {
@@ -57,12 +57,12 @@ const VIBES: Array<{
   },
   {
     id: 'small-venues',
-    title: 'Small Venues',
+    title: 'Small venues',
     description: 'Intimate stages with limited space and curated vibes.',
   },
   {
     id: 'late-shows',
-    title: 'Late Shows',
+    title: 'Late shows',
     description: 'Events kicking off after 10 PM for night owls.',
   },
   {
@@ -82,12 +82,12 @@ const VIBES: Array<{
   },
   {
     id: 'best-venues',
-    title: 'Best Venues',
+    title: 'Best venues',
     description: 'Venues with 4+ star reputations.',
   },
   {
     id: 'best-value',
-    title: 'Best Value',
+    title: 'Best value',
     description: 'Great shows that stretch your dollar further.',
   },
 ];
@@ -117,7 +117,7 @@ export function VibeSelectorSheet({ visible, onClose, onSelect }: Props) {
         <View style={[styles.sheet, { paddingBottom: sheetPaddingBottom }]}>
           <View style={styles.handle} />
           <SynthText variant="h2" style={styles.title}>
-            Browse Vibes
+            Browse vibes
           </SynthText>
           <SynthText variant="meta" color="secondary" style={styles.subtitle}>
             Tap a curated vibe to start exploring events from a fresh perspective.

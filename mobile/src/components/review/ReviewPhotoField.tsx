@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
+import { X } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { uploadReviewPhotoFromUri } from '../../services/reviewPhotoUpload';
@@ -140,9 +141,7 @@ export function ReviewPhotoField({
                                     onPress={() => remove(i)}
                                     accessibilityLabel={`Remove photo ${i + 1}`}
                                 >
-                                    <SynthText variant="meta" style={styles.photoActionTxt}>
-                                        ✕
-                                    </SynthText>
+                                    <X size={12} color="#FFFDFA" strokeWidth={2.5} />
                                 </Pressable>
                             </View>
                         </View>

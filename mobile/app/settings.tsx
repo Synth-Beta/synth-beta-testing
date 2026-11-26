@@ -245,7 +245,7 @@ export default function SettingsScreen() {
               'Notifications are turned off for Synth in your device settings, so you won’t receive push alerts. Open Settings to enable them.',
               [
                 { text: 'Not now', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+                { text: 'Open settings', onPress: () => { void Linking.openSettings(); } },
               ],
             );
           }
@@ -365,7 +365,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <ToggleRow
             icon={isPublicProfile ? Eye : EyeOff}
-            label="Public Profile"
+            label="Public profile"
             description={isPublicProfile ? 'Visible to all users' : 'Only visible to friends'}
             value={isPublicProfile}
             onValueChange={onTogglePublic}
@@ -379,7 +379,7 @@ export default function SettingsScreen() {
           <RowDivider />
           <ToggleRow
             icon={Bell}
-            label="Push Notifications"
+            label="Push notifications"
             description={enablePush ? 'Enabled' : 'Disabled'}
             value={enablePush}
             onValueChange={onTogglePush}
@@ -390,7 +390,7 @@ export default function SettingsScreen() {
               the database coalesces them. */}
           <ToggleRow
             icon={MessageCircle}
-            label="Message Notifications"
+            label="Message notifications"
             description={
               enableChatNotifs
                 ? 'One notification per conversation until you read it'
@@ -420,7 +420,7 @@ export default function SettingsScreen() {
               <RowDivider />
               <ToggleRow
                 icon={Mail}
-                label="Email Notifications"
+                label="Email notifications"
                 description={enableEmails ? 'Enabled' : 'Disabled'}
                 value={enableEmails}
                 onValueChange={onToggleEmails}
@@ -459,7 +459,7 @@ export default function SettingsScreen() {
           <RowDivider />
           <AccountNavRow
             icon={CheckCircle}
-            label="Verification Status"
+            label="Verification status"
             description="Track your verification progress"
             rightBadge={verified ? 'Verified' : undefined}
             onPress={() => router.push('/settings/verification')}
@@ -467,17 +467,17 @@ export default function SettingsScreen() {
           <RowDivider />
           <AccountNavRow
             icon={Shield}
-            label="Parental Controls"
+            label="Parental controls"
             description="Age verification and safety settings"
             onPress={() => router.push('/settings/parental')}
           />
         </View>
 
-        <SettingsSection title="Connected Apps" />
+        <SettingsSection title="Connected apps" />
         <View style={styles.card}>
           <AccountNavRow
             icon={Link2}
-            label="Connected Apps"
+            label="Connected apps"
             description="Spotify, Apple Music, Pick5"
             onPress={() => router.push('/settings/connected-apps' as any)}
           />
@@ -487,7 +487,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <AccountNavRow
             icon={Sparkles}
-            label="App Tutorial"
+            label="App tutorial"
             description="Walk through Synth on the real screens again"
             onPress={() => {
               router.dismissTo('/(tabs)');
@@ -496,11 +496,11 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <SettingsSection title="Danger Zone" />
+        <SettingsSection title="Danger zone" />
         <View style={styles.card}>
           <AccountNavRow
             icon={UserX}
-            label="Delete Account"
+            label="Delete account"
             description="Permanently remove your account"
             danger
             onPress={() => router.push('/settings/delete-account')}
@@ -508,7 +508,7 @@ export default function SettingsScreen() {
         </View>
 
         <Pressable onPress={() => { void Linking.openURL('https://getsynth.app/privacy-policy.html'); }}>
-          <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+          <Text style={styles.privacyLinkText}>Privacy policy</Text>
         </Pressable>
 
         <Pressable

@@ -20,7 +20,7 @@ export default function ConnectedAppsScreen() {
         <Pressable onPress={() => router.back()} style={styles.iconBtn} accessibilityLabel="Back">
           <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
         </Pressable>
-        <Text style={styles.title}>Connected Apps</Text>
+        <Text style={styles.title}>Connected apps</Text>
         <View style={styles.iconBtn} />
       </View>
 

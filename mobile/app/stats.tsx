@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   getSpotifyTimeRangeList,
   hasPerRangeData,
@@ -36,7 +35,7 @@ import {
 } from '../src/services/streamingConnectionService';
 import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Music, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
+import { Music, ChevronLeft, ChevronRight, RefreshCw, Headphones, Zap } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
 import {
   syncStreamingProfile,
@@ -436,7 +435,7 @@ export default function StreamingStatsScreen() {
         </Pressable>
         <View style={styles.topBarTitle}>
           <Music size={18} color={PINK} />
-          <Text style={styles.topBarTitleText}>Streaming Stats</Text>
+          <Text style={styles.topBarTitleText}>Streaming stats</Text>
         </View>
         {linked ? (
           <Pressable
@@ -465,7 +464,7 @@ export default function StreamingStatsScreen() {
         }
       >
         <View style={styles.titleBlock}>
-          <Text style={styles.pageTitle}>Streaming Stats</Text>
+          <Text style={styles.pageTitle}>Streaming stats</Text>
           {lastSynced ? (
             <Text style={styles.lastSynced}>Updated {formatRelativeTime(lastSynced)}</Text>
           ) : linked ? (
@@ -487,14 +486,9 @@ export default function StreamingStatsScreen() {
               style={styles.connectCardWrapper}
               disabled={resyncing}
             >
-              <LinearGradient
-                colors={['#1DB954', '#15803d']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.connectCard}
-              >
+              <View style={styles.connectCard}>
                 <View style={styles.connectCardInner}>
-                  <View style={styles.connectCardIcon}>
+                  <View style={[styles.connectCardIcon, { backgroundColor: '#1DB954' }]}>
                     <Music size={24} color="#FFFDFA" />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -503,29 +497,24 @@ export default function StreamingStatsScreen() {
                       {resyncing ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
                     </Text>
                   </View>
-                  <Text style={styles.connectCardArrow}>→</Text>
+                  <ChevronRight size={20} color={SynthTokens.colors.neutral400} />
                 </View>
-              </LinearGradient>
+              </View>
             </Pressable>
             ) : null}
             <Pressable onPress={() => openStreamingOnWeb('apple-music')} style={styles.connectCardWrapper}>
-              <LinearGradient
-                colors={['#fc3c44', '#b91c1c']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.connectCard}
-              >
+              <View style={styles.connectCard}>
                 <View style={styles.connectCardInner}>
-                  <View style={styles.connectCardIcon}>
+                  <View style={[styles.connectCardIcon, { backgroundColor: '#fc3c44' }]}>
                     <Headphones size={24} color="#FFFDFA" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.connectCardTitle}>Connect Apple Music</Text>
                     <Text style={styles.connectCardSub}>Opens on web · same quick flow</Text>
                   </View>
-                  <Text style={styles.connectCardArrow}>→</Text>
+                  <ChevronRight size={20} color={SynthTokens.colors.neutral400} />
                 </View>
-              </LinearGradient>
+              </View>
             </Pressable>
             <MusicImportOptions onImported={() => void loadProfile(false)} />
           </View>
@@ -533,7 +522,7 @@ export default function StreamingStatsScreen() {
 
         {showSyncingEmptyState ? (
           <View style={styles.syncingCard}>
-            <LinearGradient colors={[PINK + '18', PINK + '08']} style={styles.syncingCardGradient}>
+            <View style={styles.syncingCardGradient}>
               <View style={styles.syncingIconRow}>
                 <View style={styles.syncingIconBg}>
                   <Zap size={26} color={PINK} />
@@ -552,7 +541,7 @@ export default function StreamingStatsScreen() {
                   <Text style={styles.openWebBtnText}>Open on web</Text>
                 </Pressable>
               </View>
-            </LinearGradient>
+            </View>
           </View>
         ) : null}
 
@@ -734,7 +723,12 @@ const styles = StyleSheet.create({
   },
   connectCopy: { lineHeight: 22 },
   connectCardWrapper: { borderRadius: 18, overflow: 'hidden' },
-  connectCard: { borderRadius: 18 },
+  connectCard: {
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral0,
+  },
   connectCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -750,25 +744,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   connectCardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFDFA',
-    marginBottom: 3,
+    fontSize: 16,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral900,
+    marginBottom: 2,
   },
   connectCardSub: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  connectCardArrow: {
-    fontSize: 20,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '700',
+    color: SynthTokens.colors.neutral600,
   },
   syncingCard: {
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: PINK + '30',
+    backgroundColor: SynthTokens.colors.brandPink050,
   },
   syncingCardGradient: {
     padding: SynthTokens.spacing.lg,

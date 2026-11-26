@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Reply } from 'lucide-react-native';
+import { Reply, X } from 'lucide-react-native';
 import {
     DEFAULT_REACTION_EMOJIS,
     formatTypingIndicator,
@@ -68,7 +68,7 @@ export function ReplyQuote({
                     accessibilityLabel="Cancel reply"
                     style={styles.quoteDismiss}
                 >
-                    <Text style={styles.quoteDismissText}>✕</Text>
+                    <X size={16} color={SynthTokens.colors.neutral600} />
                 </Pressable>
             ) : null}
         </View>

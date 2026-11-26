@@ -4118,58 +4118,6 @@
       "source_location": "L35"
     },
     {
-      "id": "src_components_eventcard_event",
-      "label": "Event",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "event",
-      "source_file": "src/components/EventCard.tsx",
-      "source_location": "L12"
-    },
-    {
-      "id": "src_components_eventcard_eventcardprops",
-      "label": "EventCardProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "eventcardprops",
-      "source_file": "src/components/EventCard.tsx",
-      "source_location": "L26"
-    },
-    {
-      "id": "src_components_feed_friendsuggestionsrail_friendsuggestion",
-      "label": "FriendSuggestion",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "friendsuggestion",
-      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
-      "source_location": "L10"
-    },
-    {
-      "id": "src_components_feed_friendsuggestionsrail_friendsuggestionsrailprops",
-      "label": "FriendSuggestionsRailProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "friendsuggestionsrailprops",
-      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
-      "source_location": "L20"
-    },
-    {
       "id": "src_components_profile_musicserviceactionmodal_musicservicetype",
       "label": "MusicServiceType",
       "_callable": true,
@@ -4274,19 +4222,6 @@
       "source_location": "L12"
     },
     {
-      "id": "src_components_ui_progressiveimage_progressiveimageprops",
-      "label": "ProgressiveImageProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "progressiveimageprops",
-      "source_file": "src/components/ui/ProgressiveImage.tsx",
-      "source_location": "L4"
-    },
-    {
       "id": "src_components_ui_review_images_upload_reviewimagesuploadprops",
       "label": "ReviewImagesUploadProps",
       "_callable": true,
@@ -4313,17 +4248,17 @@
       "source_location": "L6"
     },
     {
-      "id": "src_hooks_useautosave_useautosaveoptions",
-      "label": "UseAutoSaveOptions",
+      "id": "src_components_workingconnectionbadge_workingconnectionbadgeprops",
+      "label": "WorkingConnectionBadgeProps",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 13,
       "community_name": "src/components/profile/ProfileView.tsx",
       "file_type": "code",
-      "norm_label": "useautosaveoptions",
-      "source_file": "src/hooks/useAutoSave.ts",
-      "source_location": "L4"
+      "norm_label": "workingconnectionbadgeprops",
+      "source_file": "src/components/WorkingConnectionBadge.tsx",
+      "source_location": "L5"
     },
     {
       "id": "src_hooks_usereviewform_reviewformstate",
@@ -4365,58 +4300,6 @@
       "source_location": "L13"
     },
     {
-      "id": "src_hooks_usesetlist_setlistdata",
-      "label": "SetlistData",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "setlistdata",
-      "source_file": "src/hooks/useSetlist.ts",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_hooks_usesetlist_usesetlistresult",
-      "label": "UseSetlistResult",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "usesetlistresult",
-      "source_file": "src/hooks/useSetlist.ts",
-      "source_location": "L37"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewdata",
-      "label": "DraftReviewData",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "draftreviewdata",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L27"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice",
-      "label": "DraftReviewService",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "draftreviewservice",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L59"
-    },
-    {
       "id": "src_services_friendsservice_friendsservice",
       "label": "FriendsService",
       "_callable": true,
@@ -4428,19 +4311,6 @@
       "norm_label": "friendsservice",
       "source_file": "src/services/friendsService.ts",
       "source_location": "L24"
-    },
-    {
-      "id": "src_utils_eventstatusutils_eventstatus",
-      "label": "EventStatus",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "eventstatus",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L8"
     },
     {
       "id": "mobile_components_themed_textprops",
@@ -4690,19 +4560,6 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_chats_verifiedchatbadge_verifiedchatbadgeprops",
-      "label": "VerifiedChatBadgeProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "verifiedchatbadgeprops",
-      "source_file": "src/components/chats/VerifiedChatBadge.tsx",
-      "source_location": "L9"
-    },
-    {
       "id": "src_components_discover_genreshowsmodal_genreshowsmodalprops",
       "label": "GenreShowsModalProps",
       "_callable": true,
@@ -4859,19 +4716,6 @@
       "source_location": "L10"
     },
     {
-      "id": "src_components_social_friendsinterestedbadge_friendsinterestedbadgeprops",
-      "label": "FriendsInterestedBadgeProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "friendsinterestedbadgeprops",
-      "source_file": "src/components/social/FriendsInterestedBadge.tsx",
-      "source_location": "L12"
-    },
-    {
       "id": "src_components_social_popularityindicator_popularityindicatorprops",
       "label": "PopularityIndicatorProps",
       "_callable": true,
@@ -4883,32 +4727,6 @@
       "norm_label": "popularityindicatorprops",
       "source_file": "src/components/social/PopularityIndicator.tsx",
       "source_location": "L10"
-    },
-    {
-      "id": "src_components_social_trendingbadge_trendingbadgeprops",
-      "label": "TrendingBadgeProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "trendingbadgeprops",
-      "source_file": "src/components/social/TrendingBadge.tsx",
-      "source_location": "L12"
-    },
-    {
-      "id": "src_components_ui_badge_badgeprops",
-      "label": "BadgeProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "badgeprops",
-      "source_file": "src/components/ui/badge.tsx",
-      "source_location": "L26"
     },
     {
       "id": "src_hooks_uselockbodyscroll_savedscrollstate",
@@ -5065,45 +4883,6 @@
       "norm_label": "sharetarget",
       "source_file": "src/services/inAppShareService.ts",
       "source_location": "L10"
-    },
-    {
-      "id": "src_services_verifiedchatservice_entitytype",
-      "label": "EntityType",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "entitytype",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_services_verifiedchatservice_verifiedchatinfo",
-      "label": "VerifiedChatInfo",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "verifiedchatinfo",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L5"
-    },
-    {
-      "id": "src_services_verifiedchatservice_verifiedchatservice",
-      "label": "VerifiedChatService",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "verifiedchatservice",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L17"
     },
     {
       "id": "packages_synth_shared_src_chatcore_chatauthortype",
@@ -11697,19 +11476,6 @@
       "source_location": "L31"
     },
     {
-      "id": "src_services_analyticsdataservice_analyticsprofile",
-      "label": "AnalyticsProfile",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "analyticsprofile",
-      "source_file": "src/services/analyticsDataService.ts",
-      "source_location": "L10"
-    },
-    {
       "id": "src_services_businessanalyticsservice_artistperformance",
       "label": "ArtistPerformance",
       "_callable": true,
@@ -11788,71 +11554,6 @@
       "source_location": "L40"
     },
     {
-      "id": "src_services_creatoranalyticsservice_contentperformance",
-      "label": "ContentPerformance",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "contentperformance",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L31"
-    },
-    {
-      "id": "src_services_creatoranalyticsservice_creatorachievement",
-      "label": "CreatorAchievement",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "creatorachievement",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L39"
-    },
-    {
-      "id": "src_services_creatoranalyticsservice_creatorstats",
-      "label": "CreatorStats",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "creatorstats",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_services_creatoranalyticsservice_faninsight",
-      "label": "FanInsight",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "faninsight",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_services_creatoranalyticsservice_geographicinsight",
-      "label": "GeographicInsight",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "geographicinsight",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L23"
-    },
-    {
       "id": "src_services_emailservice_emailnotification",
       "label": "EmailNotification",
       "_callable": true,
@@ -11905,45 +11606,6 @@
       "source_location": "L64"
     },
     {
-      "id": "src_services_promotionanalyticsservice_promotioncomparison",
-      "label": "PromotionComparison",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "promotioncomparison",
-      "source_file": "src/services/promotionAnalyticsService.ts",
-      "source_location": "L48"
-    },
-    {
-      "id": "src_services_promotionanalyticsservice_promotionmetrics",
-      "label": "PromotionMetrics",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "promotionmetrics",
-      "source_file": "src/services/promotionAnalyticsService.ts",
-      "source_location": "L10"
-    },
-    {
-      "id": "src_services_promotionanalyticsservice_promotionperformance",
-      "label": "PromotionPerformance",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "promotionperformance",
-      "source_file": "src/services/promotionAnalyticsService.ts",
-      "source_location": "L33"
-    },
-    {
       "id": "src_services_vipanalyticsservice_vipanalyticsservice",
       "label": "VIPAnalyticsService",
       "_callable": true,
@@ -11955,45 +11617,6 @@
       "norm_label": "vipanalyticsservice",
       "source_file": "src/services/vipAnalyticsService.ts",
       "source_location": "L41"
-    },
-    {
-      "id": "src_services_vipanalyticsservice_vipcustomer",
-      "label": "VIPCustomer",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "vipcustomer",
-      "source_file": "src/services/vipAnalyticsService.ts",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_services_vipanalyticsservice_vipmetrics",
-      "label": "VIPMetrics",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "vipmetrics",
-      "source_file": "src/services/vipAnalyticsService.ts",
-      "source_location": "L20"
-    },
-    {
-      "id": "src_services_vipanalyticsservice_viptrend",
-      "label": "VIPTrend",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "viptrend",
-      "source_file": "src/services/vipAnalyticsService.ts",
-      "source_location": "L34"
     },
     {
       "id": "src_utils_verificationutils_accounttype",
@@ -13283,6 +12906,32 @@
       "source_location": "L5"
     },
     {
+      "id": "src_components_eventcard_event",
+      "label": "Event",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "event",
+      "source_file": "src/components/EventCard.tsx",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_components_eventcard_eventcardprops",
+      "label": "EventCardProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "eventcardprops",
+      "source_file": "src/components/EventCard.tsx",
+      "source_location": "L26"
+    },
+    {
       "id": "src_components_events_eventmap_eventmapprops",
       "label": "EventMapProps",
       "_callable": true,
@@ -13322,43 +12971,43 @@
       "source_location": "L10"
     },
     {
-      "id": "src_components_notifications_notificationbell_notificationbellprops",
-      "label": "NotificationBellProps",
+      "id": "src_components_feed_friendsuggestionsrail_friendsuggestion",
+      "label": "FriendSuggestion",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "notificationbellprops",
-      "source_file": "src/components/notifications/NotificationBell.tsx",
-      "source_location": "L11"
-    },
-    {
-      "id": "src_components_pageactions_pageactionsprops",
-      "label": "PageActionsProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "pageactionsprops",
-      "source_file": "src/components/PageActions.tsx",
+      "norm_label": "friendsuggestion",
+      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
       "source_location": "L10"
     },
     {
-      "id": "src_components_reviews_venuecard_venuecardprops",
-      "label": "VenueCardProps",
+      "id": "src_components_feed_friendsuggestionsrail_friendsuggestionsrailprops",
+      "label": "FriendSuggestionsRailProps",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "venuecardprops",
-      "source_file": "src/components/reviews/VenueCard.tsx",
-      "source_location": "L11"
+      "norm_label": "friendsuggestionsrailprops",
+      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_components_ui_progressiveimage_progressiveimageprops",
+      "label": "ProgressiveImageProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "progressiveimageprops",
+      "source_file": "src/components/ui/ProgressiveImage.tsx",
+      "source_location": "L4"
     },
     {
       "id": "src_components_unifiedfeed_feedherohighlight",
@@ -13400,6 +13049,32 @@
       "source_location": "L148"
     },
     {
+      "id": "src_hooks_usesetlist_setlistdata",
+      "label": "SetlistData",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "setlistdata",
+      "source_file": "src/hooks/useSetlist.ts",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_hooks_usesetlist_usesetlistresult",
+      "label": "UseSetlistResult",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "usesetlistresult",
+      "source_file": "src/hooks/useSetlist.ts",
+      "source_location": "L37"
+    },
+    {
       "id": "src_lib_eventnames_eventrelations",
       "label": "EventRelations",
       "_callable": true,
@@ -13424,32 +13099,6 @@
       "norm_label": "named",
       "source_file": "src/lib/eventNames.ts",
       "source_location": "L37"
-    },
-    {
-      "id": "src_pages_artistfollowingpage_artistwithevents",
-      "label": "ArtistWithEvents",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "artistwithevents",
-      "source_file": "src/pages/ArtistFollowingPage.tsx",
-      "source_location": "L25"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice",
-      "label": "ArtistFollowService",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "artistfollowservice",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L8"
     },
     {
       "id": "src_services_unifiedeventsearchservice_unifiedevent",
@@ -13504,43 +13153,17 @@
       "source_location": "L71"
     },
     {
-      "id": "src_types_artistfollow_artistfollow",
-      "label": "ArtistFollow",
+      "id": "src_utils_eventstatusutils_eventstatus",
+      "label": "EventStatus",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "artistfollow",
-      "source_file": "src/types/artistFollow.ts",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_types_artistfollow_artistfollowstats",
-      "label": "ArtistFollowStats",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "artistfollowstats",
-      "source_file": "src/types/artistFollow.ts",
-      "source_location": "L25"
-    },
-    {
-      "id": "src_types_artistfollow_artistfollowwithdetails",
-      "label": "ArtistFollowWithDetails",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "artistfollowwithdetails",
-      "source_file": "src/types/artistFollow.ts",
-      "source_location": "L11"
+      "norm_label": "eventstatus",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L8"
     },
     {
       "id": "apps_admin_src_services_musictasteservice_musictasteservice",
@@ -15922,6 +15545,19 @@
       "source_location": "L11"
     },
     {
+      "id": "src_components_notifications_notificationbell_notificationbellprops",
+      "label": "NotificationBellProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "notificationbellprops",
+      "source_file": "src/components/notifications/NotificationBell.tsx",
+      "source_location": "L11"
+    },
+    {
       "id": "src_components_onboarding_musictagsstep_musictagsstepprops",
       "label": "MusicTagsStepProps",
       "_callable": true,
@@ -15946,6 +15582,97 @@
       "norm_label": "onboardingreminderbannerprops",
       "source_file": "src/components/onboarding/OnboardingReminderBanner.tsx",
       "source_location": "L5"
+    },
+    {
+      "id": "src_components_pageactions_pageactionsprops",
+      "label": "PageActionsProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "pageactionsprops",
+      "source_file": "src/components/PageActions.tsx",
+      "source_location": "L10"
+    },
+    {
+      "id": "src_components_search_eventfilters_citydata",
+      "label": "CityData",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "citydata",
+      "source_file": "src/components/search/EventFilters.tsx",
+      "source_location": "L39"
+    },
+    {
+      "id": "src_components_search_eventfilters_eventfiltersprops",
+      "label": "EventFiltersProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "eventfiltersprops",
+      "source_file": "src/components/search/EventFilters.tsx",
+      "source_location": "L45"
+    },
+    {
+      "id": "src_components_searchbar_searchbar_searchbarprops",
+      "label": "SearchBarProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "searchbarprops",
+      "source_file": "src/components/SearchBar/SearchBar.tsx",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_components_social_friendsinterestedbadge_friendsinterestedbadgeprops",
+      "label": "FriendsInterestedBadgeProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "friendsinterestedbadgeprops",
+      "source_file": "src/components/social/FriendsInterestedBadge.tsx",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_components_social_trendingbadge_trendingbadgeprops",
+      "label": "TrendingBadgeProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "trendingbadgeprops",
+      "source_file": "src/components/social/TrendingBadge.tsx",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_components_ui_badge_badgeprops",
+      "label": "BadgeProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "badgeprops",
+      "source_file": "src/components/ui/badge.tsx",
+      "source_location": "L26"
     },
     {
       "id": "src_components_ui_command_commanddialogprops",
@@ -16024,71 +15751,6 @@
       "norm_label": "musicgenre",
       "source_file": "src/data/musicGenres.ts",
       "source_location": "L74"
-    },
-    {
-      "id": "src_hooks_use_toast_action",
-      "label": "Action",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "action",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L34"
-    },
-    {
-      "id": "src_hooks_use_toast_actiontype",
-      "label": "ActionType",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "actiontype",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L32"
-    },
-    {
-      "id": "src_hooks_use_toast_state",
-      "label": "State",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "state",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L52"
-    },
-    {
-      "id": "src_hooks_use_toast_toast",
-      "label": "Toast",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "toast",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L140"
-    },
-    {
-      "id": "src_hooks_use_toast_toastertoast",
-      "label": "ToasterToast",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "toastertoast",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L11"
     },
     {
       "id": "src_services_unifiedvenuesearchservice_venuesearchresult",
@@ -16455,19 +16117,6 @@
       "source_location": "L20"
     },
     {
-      "id": "src_components_workingconnectionbadge_workingconnectionbadgeprops",
-      "label": "WorkingConnectionBadgeProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 45,
-      "community_name": "src/integrations/supabase/client.ts",
-      "file_type": "code",
-      "norm_label": "workingconnectionbadgeprops",
-      "source_file": "src/components/WorkingConnectionBadge.tsx",
-      "source_location": "L5"
-    },
-    {
       "id": "src_hooks_useaccounttype_accountinfo",
       "label": "AccountInfo",
       "_callable": true,
@@ -16492,6 +16141,19 @@
       "norm_label": "accounttype",
       "source_file": "src/hooks/useAccountType.ts",
       "source_location": "L7"
+    },
+    {
+      "id": "src_hooks_useautosave_useautosaveoptions",
+      "label": "UseAutoSaveOptions",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "useautosaveoptions",
+      "source_file": "src/hooks/useAutoSave.ts",
+      "source_location": "L4"
     },
     {
       "id": "src_hooks_usemainnavitems_mainnavcurrentview",
@@ -16559,6 +16221,19 @@
       "source_location": "L34"
     },
     {
+      "id": "src_services_analyticsdataservice_analyticsprofile",
+      "label": "AnalyticsProfile",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "analyticsprofile",
+      "source_file": "src/services/analyticsDataService.ts",
+      "source_location": "L10"
+    },
+    {
       "id": "src_services_badgeservice_badgeservice",
       "label": "BadgeService",
       "_callable": true,
@@ -16609,6 +16284,97 @@
       "norm_label": "cacheservice",
       "source_file": "src/services/cacheService.ts",
       "source_location": "L127"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice_contentperformance",
+      "label": "ContentPerformance",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "contentperformance",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L31"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice_creatorachievement",
+      "label": "CreatorAchievement",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "creatorachievement",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L39"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice_creatorstats",
+      "label": "CreatorStats",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "creatorstats",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice_faninsight",
+      "label": "FanInsight",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "faninsight",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice_geographicinsight",
+      "label": "GeographicInsight",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "geographicinsight",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L23"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewdata",
+      "label": "DraftReviewData",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "draftreviewdata",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L27"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice",
+      "label": "DraftReviewService",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "draftreviewservice",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L59"
     },
     {
       "id": "src_services_eventlikesservice_eventlike",
@@ -16793,6 +16559,45 @@
       "source_location": "L3"
     },
     {
+      "id": "src_services_promotionanalyticsservice_promotioncomparison",
+      "label": "PromotionComparison",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "promotioncomparison",
+      "source_file": "src/services/promotionAnalyticsService.ts",
+      "source_location": "L48"
+    },
+    {
+      "id": "src_services_promotionanalyticsservice_promotionmetrics",
+      "label": "PromotionMetrics",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "promotionmetrics",
+      "source_file": "src/services/promotionAnalyticsService.ts",
+      "source_location": "L10"
+    },
+    {
+      "id": "src_services_promotionanalyticsservice_promotionperformance",
+      "label": "PromotionPerformance",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "promotionperformance",
+      "source_file": "src/services/promotionAnalyticsService.ts",
+      "source_location": "L33"
+    },
+    {
       "id": "src_services_promotiontrackingservice_promotiontrackingevent",
       "label": "PromotionTrackingEvent",
       "_callable": true,
@@ -16934,6 +16739,45 @@
       "norm_label": "visibilityprofile",
       "source_file": "src/services/userVisibilityService.ts",
       "source_location": "L4"
+    },
+    {
+      "id": "src_services_vipanalyticsservice_vipcustomer",
+      "label": "VIPCustomer",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "vipcustomer",
+      "source_file": "src/services/vipAnalyticsService.ts",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_services_vipanalyticsservice_vipmetrics",
+      "label": "VIPMetrics",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "vipmetrics",
+      "source_file": "src/services/vipAnalyticsService.ts",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_services_vipanalyticsservice_viptrend",
+      "label": "VIPTrend",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "viptrend",
+      "source_file": "src/services/vipAnalyticsService.ts",
+      "source_location": "L34"
     },
     {
       "id": "src_types_database_user",
@@ -17898,6 +17742,19 @@
       "source_location": "L10"
     },
     {
+      "id": "src_components_chats_verifiedchatbadge_verifiedchatbadgeprops",
+      "label": "VerifiedChatBadgeProps",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "verifiedchatbadgeprops",
+      "source_file": "src/components/chats/VerifiedChatBadge.tsx",
+      "source_location": "L9"
+    },
+    {
       "id": "src_components_discover_becauseyoulikesection_becauseyoulikesectionprops",
       "label": "BecauseYouLikeSectionProps",
       "_callable": true,
@@ -18288,30 +18145,17 @@
       "source_location": "L22"
     },
     {
-      "id": "src_components_search_eventfilters_citydata",
-      "label": "CityData",
+      "id": "src_components_reviews_venuecard_venuecardprops",
+      "label": "VenueCardProps",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "citydata",
-      "source_file": "src/components/search/EventFilters.tsx",
-      "source_location": "L39"
-    },
-    {
-      "id": "src_components_search_eventfilters_eventfiltersprops",
-      "label": "EventFiltersProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "eventfiltersprops",
-      "source_file": "src/components/search/EventFilters.tsx",
-      "source_location": "L45"
+      "norm_label": "venuecardprops",
+      "source_file": "src/components/reviews/VenueCard.tsx",
+      "source_location": "L11"
     },
     {
       "id": "src_components_search_eventfilters_filterstate",
@@ -18325,19 +18169,6 @@
       "norm_label": "filterstate",
       "source_file": "src/components/search/EventFilters.tsx",
       "source_location": "L24"
-    },
-    {
-      "id": "src_components_searchbar_searchbar_searchbarprops",
-      "label": "SearchBarProps",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "searchbarprops",
-      "source_file": "src/components/SearchBar/SearchBar.tsx",
-      "source_location": "L5"
     },
     {
       "id": "src_components_ui_calendar_calendarprops",
@@ -19003,6 +18834,45 @@
       "source_location": "L17"
     },
     {
+      "id": "src_services_verifiedchatservice_entitytype",
+      "label": "EntityType",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "entitytype",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_services_verifiedchatservice_verifiedchatinfo",
+      "label": "VerifiedChatInfo",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "verifiedchatinfo",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_services_verifiedchatservice_verifiedchatservice",
+      "label": "VerifiedChatService",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "verifiedchatservice",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L17"
+    },
+    {
       "id": "src_types_database_userjambaseevent",
       "label": "UserJamBaseEvent",
       "_callable": true,
@@ -19430,6 +19300,71 @@
       "norm_label": "menucategoryprops",
       "source_file": "src/components/MenuCategory/MenuCategory.tsx",
       "source_location": "L6"
+    },
+    {
+      "id": "src_pages_artistfollowingpage_artistwithevents",
+      "label": "ArtistWithEvents",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistwithevents",
+      "source_file": "src/pages/ArtistFollowingPage.tsx",
+      "source_location": "L25"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice",
+      "label": "ArtistFollowService",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistfollowservice",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L8"
+    },
+    {
+      "id": "src_types_artistfollow_artistfollow",
+      "label": "ArtistFollow",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistfollow",
+      "source_file": "src/types/artistFollow.ts",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_types_artistfollow_artistfollowstats",
+      "label": "ArtistFollowStats",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistfollowstats",
+      "source_file": "src/types/artistFollow.ts",
+      "source_location": "L25"
+    },
+    {
+      "id": "src_types_artistfollow_artistfollowwithdetails",
+      "label": "ArtistFollowWithDetails",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistfollowwithdetails",
+      "source_file": "src/types/artistFollow.ts",
+      "source_location": "L11"
     },
     {
       "id": "src_services_emailservice_emailservice",
@@ -20405,6 +20340,71 @@
       "norm_label": "user",
       "source_file": "src/components/UnifiedChatView.tsx",
       "source_location": "L213"
+    },
+    {
+      "id": "src_hooks_use_toast_action",
+      "label": "Action",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "action",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L34"
+    },
+    {
+      "id": "src_hooks_use_toast_actiontype",
+      "label": "ActionType",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "actiontype",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L32"
+    },
+    {
+      "id": "src_hooks_use_toast_state",
+      "label": "State",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "state",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L52"
+    },
+    {
+      "id": "src_hooks_use_toast_toast",
+      "label": "Toast",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "toast",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L140"
+    },
+    {
+      "id": "src_hooks_use_toast_toastertoast",
+      "label": "ToasterToast",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "toastertoast",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L11"
     },
     {
       "id": "src_services_aisceneguidemuteservice_aisceneguidemuteservice",
@@ -33318,30 +33318,6 @@
       "source_location": "L40"
     },
     {
-      "id": "src_components_eventcard_eventcard",
-      "label": "EventCard()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "eventcard()",
-      "source_file": "src/components/EventCard.tsx",
-      "source_location": "L32"
-    },
-    {
-      "id": "src_components_feed_friendsuggestionsrail_friendsuggestionsrail",
-      "label": "FriendSuggestionsRail()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "friendsuggestionsrail()",
-      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
-      "source_location": "L32"
-    },
-    {
       "id": "src_components_profile_profiledraftssummary_profiledraftssummary",
       "label": "ProfileDraftsSummary()",
       "_callable": true,
@@ -33450,18 +33426,6 @@
       "source_location": "L21"
     },
     {
-      "id": "src_components_ui_progressiveimage_progressiveimage",
-      "label": "ProgressiveImage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "progressiveimage()",
-      "source_file": "src/components/ui/ProgressiveImage.tsx",
-      "source_location": "L15"
-    },
-    {
       "id": "src_components_ui_review_images_upload_makeid",
       "label": "makeId()",
       "_callable": true,
@@ -33498,123 +33462,15 @@
       "source_location": "L443"
     },
     {
-      "id": "src_hooks_usesetlist_usesetlist",
-      "label": "useSetlist()",
+      "id": "src_components_workingconnectionbadge_workingconnectionbadge",
+      "label": "WorkingConnectionBadge()",
       "_callable": true,
       "_origin": "ast",
       "community": 13,
       "community_name": "src/components/profile/ProfileView.tsx",
       "file_type": "code",
-      "norm_label": "usesetlist()",
-      "source_file": "src/hooks/useSetlist.ts",
-      "source_location": "L45"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_deletedraft",
-      "label": ".deleteDraft()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".deletedraft()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L304"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_ensureeventartistuuid",
-      "label": ".ensureEventArtistUuid()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".ensureeventartistuuid()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L60"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_getuserdrafts",
-      "label": ".getUserDrafts()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".getuserdrafts()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L258"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_hasdraftforevent",
-      "label": ".hasDraftForEvent()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".hasdraftforevent()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L359"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_loaddraftforevent",
-      "label": ".loadDraftForEvent()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".loaddraftforevent()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L326"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_publishdraft",
-      "label": ".publishDraft()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".publishdraft()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L279"
-    },
-    {
-      "id": "src_services_draftreviewservice_draftreviewservice_savedraft",
-      "label": ".saveDraft()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": ".savedraft()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L175"
-    },
-    {
-      "id": "src_services_draftreviewservice_isvaliduuid",
-      "label": "isValidUuid()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "isvaliduuid()",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L6"
-    },
-    {
-      "id": "src_services_draftreviewservice_sanitizeentityselection",
-      "label": "sanitizeEntitySelection()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "sanitizeentityselection()",
-      "source_file": "src/services/draftReviewService.ts",
+      "norm_label": "workingconnectionbadge()",
+      "source_file": "src/components/WorkingConnectionBadge.tsx",
       "source_location": "L9"
     },
     {
@@ -33688,126 +33544,6 @@
       "norm_label": ".unfrienduser()",
       "source_file": "src/services/friendsService.ts",
       "source_location": "L120"
-    },
-    {
-      "id": "src_utils_eventstatusutils_filtereventsbystatus",
-      "label": "filterEventsByStatus()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "filtereventsbystatus()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L45"
-    },
-    {
-      "id": "src_utils_eventstatusutils_formateventdate",
-      "label": "formatEventDate()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "formateventdate()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L75"
-    },
-    {
-      "id": "src_utils_eventstatusutils_geteventrelativetime",
-      "label": "getEventRelativeTime()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "geteventrelativetime()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L89"
-    },
-    {
-      "id": "src_utils_eventstatusutils_geteventstatus",
-      "label": "getEventStatus()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "geteventstatus()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_utils_eventstatusutils_getpastevents",
-      "label": "getPastEvents()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "getpastevents()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L66"
-    },
-    {
-      "id": "src_utils_eventstatusutils_getupcomingevents",
-      "label": "getUpcomingEvents()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "getupcomingevents()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L57"
-    },
-    {
-      "id": "src_utils_eventstatusutils_iseventpast",
-      "label": "isEventPast()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "iseventpast()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L35"
-    },
-    {
-      "id": "src_utils_eventstatusutils_iseventupcoming",
-      "label": "isEventUpcoming()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "iseventupcoming()",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L26"
-    },
-    {
-      "id": "src_utils_haptics_hapticlight",
-      "label": "hapticLight()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "hapticlight()",
-      "source_file": "src/utils/haptics.ts",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_utils_haptics_hapticmedium",
-      "label": "hapticMedium()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "hapticmedium()",
-      "source_file": "src/utils/haptics.ts",
-      "source_location": "L8"
     },
     {
       "id": "src_utils_reviewthumbnailcrop_clamp",
@@ -34996,18 +34732,6 @@
       "source_location": "L15"
     },
     {
-      "id": "src_components_chats_verifiedchatbadge_verifiedchatbadge",
-      "label": "VerifiedChatBadge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "verifiedchatbadge()",
-      "source_file": "src/components/chats/VerifiedChatBadge.tsx",
-      "source_location": "L19"
-    },
-    {
       "id": "src_components_discover_modals_artistdetailmodal_artistdetailmodal",
       "label": "ArtistDetailModal()",
       "_callable": true,
@@ -35104,18 +34828,6 @@
       "source_location": "L94"
     },
     {
-      "id": "src_components_events_eventdetailsmodal_eventdetailsmodal",
-      "label": "EventDetailsModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "eventdetailsmodal()",
-      "source_file": "src/components/events/EventDetailsModal.tsx",
-      "source_location": "L98"
-    },
-    {
       "id": "src_components_globaldetailmodals_globaldetailmodals",
       "label": "GlobalDetailModals()",
       "_callable": true,
@@ -35200,18 +34912,6 @@
       "source_location": "L26"
     },
     {
-      "id": "src_components_social_friendsinterestedbadge_friendsinterestedbadge",
-      "label": "FriendsInterestedBadge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "friendsinterestedbadge()",
-      "source_file": "src/components/social/FriendsInterestedBadge.tsx",
-      "source_location": "L17"
-    },
-    {
       "id": "src_components_social_popularityindicator_popularityindicator",
       "label": "PopularityIndicator()",
       "_callable": true,
@@ -35222,30 +34922,6 @@
       "norm_label": "popularityindicator()",
       "source_file": "src/components/social/PopularityIndicator.tsx",
       "source_location": "L16"
-    },
-    {
-      "id": "src_components_social_trendingbadge_trendingbadge",
-      "label": "TrendingBadge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "trendingbadge()",
-      "source_file": "src/components/social/TrendingBadge.tsx",
-      "source_location": "L17"
-    },
-    {
-      "id": "src_components_ui_badge_badge",
-      "label": "Badge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "badge()",
-      "source_file": "src/components/ui/badge.tsx",
-      "source_location": "L30"
     },
     {
       "id": "src_hooks_use_toast_usetoast",
@@ -35572,66 +35248,6 @@
       "source_location": "L447"
     },
     {
-      "id": "src_services_verifiedchatservice_verifiedchatservice_getorcreateverifiedchat",
-      "label": ".getOrCreateVerifiedChat()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": ".getorcreateverifiedchat()",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L25"
-    },
-    {
-      "id": "src_services_verifiedchatservice_verifiedchatservice_getverifiedchatinfo",
-      "label": ".getVerifiedChatInfo()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": ".getverifiedchatinfo()",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L87"
-    },
-    {
-      "id": "src_services_verifiedchatservice_verifiedchatservice_isusermember",
-      "label": ".isUserMember()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": ".isusermember()",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L127"
-    },
-    {
-      "id": "src_services_verifiedchatservice_verifiedchatservice_joinoropenverifiedchat",
-      "label": ".joinOrOpenVerifiedChat()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": ".joinoropenverifiedchat()",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L156"
-    },
-    {
-      "id": "src_services_verifiedchatservice_verifiedchatservice_joinverifiedchat",
-      "label": ".joinVerifiedChat()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": ".joinverifiedchat()",
-      "source_file": "src/services/verifiedChatService.ts",
-      "source_location": "L62"
-    },
-    {
       "id": "src_styles_glassmorphism_combinestyles",
       "label": "combineStyles()",
       "_callable": true,
@@ -35714,42 +35330,6 @@
       "norm_label": "tolocalymd()",
       "source_file": "src/utils/localYmd.ts",
       "source_location": "L1"
-    },
-    {
-      "id": "src_utils_trackinghelpers_extracteventmetadata",
-      "label": "extractEventMetadata()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "extracteventmetadata()",
-      "source_file": "src/utils/trackingHelpers.ts",
-      "source_location": "L11"
-    },
-    {
-      "id": "src_utils_trackinghelpers_extractticketprovider",
-      "label": "extractTicketProvider()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "extractticketprovider()",
-      "source_file": "src/utils/trackingHelpers.ts",
-      "source_location": "L108"
-    },
-    {
-      "id": "src_utils_trackinghelpers_getdaysuntilevent",
-      "label": "getDaysUntilEvent()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "getdaysuntilevent()",
-      "source_file": "src/utils/trackingHelpers.ts",
-      "source_location": "L30"
     },
     {
       "id": "packages_synth_shared_src_chatcore_createchatcore",
@@ -53500,18 +53080,6 @@
       "source_location": "L27"
     },
     {
-      "id": "src_components_artists_artistfollowbutton_artistfollowbutton",
-      "label": "ArtistFollowButton()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "artistfollowbutton()",
-      "source_file": "src/components/artists/ArtistFollowButton.tsx",
-      "source_location": "L26"
-    },
-    {
       "id": "src_components_emptystate_emptystate",
       "label": "EmptyState()",
       "_callable": true,
@@ -53522,6 +53090,18 @@
       "norm_label": "emptystate()",
       "source_file": "src/components/EmptyState.tsx",
       "source_location": "L15"
+    },
+    {
+      "id": "src_components_eventcard_eventcard",
+      "label": "EventCard()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "eventcard()",
+      "source_file": "src/components/EventCard.tsx",
+      "source_location": "L32"
     },
     {
       "id": "src_components_events_eventmap_eventmap",
@@ -53584,40 +53164,28 @@
       "source_location": "L15"
     },
     {
-      "id": "src_components_notifications_notificationbell_notificationbell",
-      "label": "NotificationBell()",
+      "id": "src_components_feed_friendsuggestionsrail_friendsuggestionsrail",
+      "label": "FriendSuggestionsRail()",
       "_callable": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "notificationbell()",
-      "source_file": "src/components/notifications/NotificationBell.tsx",
-      "source_location": "L16"
+      "norm_label": "friendsuggestionsrail()",
+      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
+      "source_location": "L32"
     },
     {
-      "id": "src_components_pageactions_pageactions",
-      "label": "PageActions()",
+      "id": "src_components_ui_progressiveimage_progressiveimage",
+      "label": "ProgressiveImage()",
       "_callable": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "pageactions()",
-      "source_file": "src/components/PageActions.tsx",
-      "source_location": "L17"
-    },
-    {
-      "id": "src_components_reviews_venuecard_venuecard",
-      "label": "VenueCard()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "venuecard()",
-      "source_file": "src/components/reviews/VenueCard.tsx",
-      "source_location": "L17"
+      "norm_label": "progressiveimage()",
+      "source_file": "src/components/ui/ProgressiveImage.tsx",
+      "source_location": "L15"
     },
     {
       "id": "src_components_unifiedfeed_getscrollparent",
@@ -53632,28 +53200,16 @@
       "source_location": "L113"
     },
     {
-      "id": "src_hooks_usenotificationsunread_usenotificationsunread",
-      "label": "useNotificationsUnread()",
+      "id": "src_hooks_usesetlist_usesetlist",
+      "label": "useSetlist()",
       "_callable": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "usenotificationsunread()",
-      "source_file": "src/hooks/useNotificationsUnread.ts",
-      "source_location": "L6"
-    },
-    {
-      "id": "src_hooks_useviewtracking_useviewtracking",
-      "label": "useViewTracking()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "useviewtracking()",
-      "source_file": "src/hooks/useViewTracking.ts",
-      "source_location": "L29"
+      "norm_label": "usesetlist()",
+      "source_file": "src/hooks/useSetlist.ts",
+      "source_location": "L45"
     },
     {
       "id": "src_lib_eventnames_witheventnames",
@@ -53678,162 +53234,6 @@
       "norm_label": "witheventnameslist()",
       "source_file": "src/lib/eventNames.ts",
       "source_location": "L50"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_followartists",
-      "label": ".followArtists()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".followartists()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L191"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_getartistfollowers",
-      "label": ".getArtistFollowers()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getartistfollowers()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L537"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_getartistfollowstats",
-      "label": ".getArtistFollowStats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getartistfollowstats()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L277"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_getartistfollowstatsbyname",
-      "label": ".getArtistFollowStatsByName()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getartistfollowstatsbyname()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L302"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_getartistuuidbyjambaseid",
-      "label": ".getArtistUuidByJambaseId()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getartistuuidbyjambaseid()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L586"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_getartistuuidbyname",
-      "label": ".getArtistUuidByName()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getartistuuidbyname()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L625"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_getfollowercount",
-      "label": ".getFollowerCount()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getfollowercount()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L252"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_isfollowingartist",
-      "label": ".isFollowingArtist()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".isfollowingartist()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L226"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_setartistfollow",
-      "label": ".setArtistFollow()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".setartistfollow()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_setartistfollowbyname",
-      "label": ".setArtistFollowByName()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".setartistfollowbyname()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L100"
-    },
-    {
-      "id": "src_services_artistfollowservice_artistfollowservice_subscribetoartistfollows",
-      "label": ".subscribeToArtistFollows()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".subscribetoartistfollows()",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L655"
-    },
-    {
-      "id": "src_services_chatservice_fetchuserchats",
-      "label": "fetchUserChats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "fetchuserchats()",
-      "source_file": "src/services/chatService.ts",
-      "source_location": "L21"
-    },
-    {
-      "id": "src_services_reviewservice_reviewservice_getvenuereviews",
-      "label": ".getVenueReviews()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": ".getvenuereviews()",
-      "source_file": "src/services/reviewService.ts",
-      "source_location": "L2375"
     },
     {
       "id": "src_services_unifiedeventsearchservice_unifiedeventsearchservice_searchbyartist",
@@ -53932,28 +53332,124 @@
       "source_location": "L34"
     },
     {
-      "id": "src_utils_entityuuidresolver_getvenuemetadata",
-      "label": "getVenueMetadata()",
+      "id": "src_utils_eventstatusutils_filtereventsbystatus",
+      "label": "filterEventsByStatus()",
       "_callable": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "getvenuemetadata()",
-      "source_file": "src/utils/entityUuidResolver.ts",
-      "source_location": "L126"
+      "norm_label": "filtereventsbystatus()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L45"
     },
     {
-      "id": "src_utils_entityuuidresolver_getvenueuuid",
-      "label": "getVenueUuid()",
+      "id": "src_utils_eventstatusutils_formateventdate",
+      "label": "formatEventDate()",
       "_callable": true,
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "getvenueuuid()",
-      "source_file": "src/utils/entityUuidResolver.ts",
-      "source_location": "L63"
+      "norm_label": "formateventdate()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L75"
+    },
+    {
+      "id": "src_utils_eventstatusutils_geteventrelativetime",
+      "label": "getEventRelativeTime()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "geteventrelativetime()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L89"
+    },
+    {
+      "id": "src_utils_eventstatusutils_geteventstatus",
+      "label": "getEventStatus()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "geteventstatus()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_utils_eventstatusutils_getpastevents",
+      "label": "getPastEvents()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "getpastevents()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L66"
+    },
+    {
+      "id": "src_utils_eventstatusutils_getupcomingevents",
+      "label": "getUpcomingEvents()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "getupcomingevents()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L57"
+    },
+    {
+      "id": "src_utils_eventstatusutils_iseventpast",
+      "label": "isEventPast()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "iseventpast()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L35"
+    },
+    {
+      "id": "src_utils_eventstatusutils_iseventupcoming",
+      "label": "isEventUpcoming()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "iseventupcoming()",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L26"
+    },
+    {
+      "id": "src_utils_haptics_hapticlight",
+      "label": "hapticLight()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "hapticlight()",
+      "source_file": "src/utils/haptics.ts",
+      "source_location": "L7"
+    },
+    {
+      "id": "src_utils_haptics_hapticmedium",
+      "label": "hapticMedium()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "hapticmedium()",
+      "source_file": "src/utils/haptics.ts",
+      "source_location": "L8"
     },
     {
       "id": "src_utils_mapboxtoken_getmapboxtoken",
@@ -60928,6 +60424,18 @@
       "source_location": "L12"
     },
     {
+      "id": "src_components_notifications_notificationbell_notificationbell",
+      "label": "NotificationBell()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "notificationbell()",
+      "source_file": "src/components/notifications/NotificationBell.tsx",
+      "source_location": "L16"
+    },
+    {
       "id": "src_components_onboarding_musictagsstep_musictagsstep",
       "label": "MusicTagsStep()",
       "_callable": true,
@@ -60950,6 +60458,78 @@
       "norm_label": "onboardingreminderbanner()",
       "source_file": "src/components/onboarding/OnboardingReminderBanner.tsx",
       "source_location": "L11"
+    },
+    {
+      "id": "src_components_pageactions_pageactions",
+      "label": "PageActions()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "pageactions()",
+      "source_file": "src/components/PageActions.tsx",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_components_search_eventfilters_eventfilters",
+      "label": "EventFilters()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "eventfilters()",
+      "source_file": "src/components/search/EventFilters.tsx",
+      "source_location": "L61"
+    },
+    {
+      "id": "src_components_searchbar_searchbar_searchbar",
+      "label": "SearchBar()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "searchbar()",
+      "source_file": "src/components/SearchBar/SearchBar.tsx",
+      "source_location": "L114"
+    },
+    {
+      "id": "src_components_social_friendsinterestedbadge_friendsinterestedbadge",
+      "label": "FriendsInterestedBadge()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "friendsinterestedbadge()",
+      "source_file": "src/components/social/FriendsInterestedBadge.tsx",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_components_social_trendingbadge_trendingbadge",
+      "label": "TrendingBadge()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "trendingbadge()",
+      "source_file": "src/components/social/TrendingBadge.tsx",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_components_ui_badge_badge",
+      "label": "Badge()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "badge()",
+      "source_file": "src/components/ui/badge.tsx",
+      "source_location": "L30"
     },
     {
       "id": "src_components_ui_command_commanddialog",
@@ -61024,52 +60604,16 @@
       "source_location": "L86"
     },
     {
-      "id": "src_hooks_use_toast_addtoremovequeue",
-      "label": "addToRemoveQueue()",
+      "id": "src_hooks_usenotificationsunread_usenotificationsunread",
+      "label": "useNotificationsUnread()",
       "_callable": true,
       "_origin": "ast",
       "community": 4,
       "community_name": "cn",
       "file_type": "code",
-      "norm_label": "addtoremovequeue()",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L58"
-    },
-    {
-      "id": "src_hooks_use_toast_dispatch",
-      "label": "dispatch()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "dispatch()",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L133"
-    },
-    {
-      "id": "src_hooks_use_toast_genid",
-      "label": "genId()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "genid()",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L27"
-    },
-    {
-      "id": "src_hooks_use_toast_reducer",
-      "label": "reducer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "reducer()",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L74"
+      "norm_label": "usenotificationsunread()",
+      "source_file": "src/hooks/useNotificationsUnread.ts",
+      "source_location": "L6"
     },
     {
       "id": "src_lib_utils_cn",
@@ -61082,6 +60626,114 @@
       "norm_label": "cn()",
       "source_file": "src/lib/utils.ts",
       "source_location": "L4"
+    },
+    {
+      "id": "src_services_chatservice_fetchuserchats",
+      "label": "fetchUserChats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "fetchuserchats()",
+      "source_file": "src/services/chatService.ts",
+      "source_location": "L21"
+    },
+    {
+      "id": "src_utils_citynormalization_arecitiesequal",
+      "label": "areCitiesEqual()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "arecitiesequal()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L92"
+    },
+    {
+      "id": "src_utils_citynormalization_deduplicatecities",
+      "label": "deduplicateCities()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "deduplicatecities()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L137"
+    },
+    {
+      "id": "src_utils_citynormalization_findsimilarcities",
+      "label": "findSimilarCities()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "findsimilarcities()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L121"
+    },
+    {
+      "id": "src_utils_citynormalization_formatcitynamefordisplay",
+      "label": "formatCityNameForDisplay()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "formatcitynamefordisplay()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L188"
+    },
+    {
+      "id": "src_utils_citynormalization_formatcitystatefordisplay",
+      "label": "formatCityStateForDisplay()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "formatcitystatefordisplay()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L239"
+    },
+    {
+      "id": "src_utils_citynormalization_getcanonicalcityname",
+      "label": "getCanonicalCityName()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "getcanonicalcityname()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L51"
+    },
+    {
+      "id": "src_utils_citynormalization_groupcityvariations",
+      "label": "groupCityVariations()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "groupcityvariations()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L101"
+    },
+    {
+      "id": "src_utils_citynormalization_normalizecityname",
+      "label": "normalizeCityName()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "normalizecityname()",
+      "source_file": "src/utils/cityNormalization.ts",
+      "source_location": "L11"
     },
     {
       "id": "src_utils_entityuuidresolver_getartistmetadata",
@@ -63112,18 +62764,6 @@
       "source_location": "L78"
     },
     {
-      "id": "src_components_workingconnectionbadge_workingconnectionbadge",
-      "label": "WorkingConnectionBadge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 45,
-      "community_name": "src/integrations/supabase/client.ts",
-      "file_type": "code",
-      "norm_label": "workingconnectionbadge()",
-      "source_file": "src/components/WorkingConnectionBadge.tsx",
-      "source_location": "L9"
-    },
-    {
       "id": "src_hooks_useaccounttype_useaccounttype",
       "label": "useAccountType()",
       "_callable": true,
@@ -63398,6 +63038,114 @@
       "norm_label": ".set()",
       "source_file": "src/services/cacheService.ts",
       "source_location": "L41"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_deletedraft",
+      "label": ".deleteDraft()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".deletedraft()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L304"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_ensureeventartistuuid",
+      "label": ".ensureEventArtistUuid()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".ensureeventartistuuid()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L60"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_getuserdrafts",
+      "label": ".getUserDrafts()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".getuserdrafts()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L258"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_hasdraftforevent",
+      "label": ".hasDraftForEvent()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".hasdraftforevent()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L359"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_loaddraftforevent",
+      "label": ".loadDraftForEvent()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".loaddraftforevent()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L326"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_publishdraft",
+      "label": ".publishDraft()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".publishdraft()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L279"
+    },
+    {
+      "id": "src_services_draftreviewservice_draftreviewservice_savedraft",
+      "label": ".saveDraft()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": ".savedraft()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L175"
+    },
+    {
+      "id": "src_services_draftreviewservice_isvaliduuid",
+      "label": "isValidUuid()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "isvaliduuid()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L6"
+    },
+    {
+      "id": "src_services_draftreviewservice_sanitizeentityselection",
+      "label": "sanitizeEntitySelection()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "sanitizeentityselection()",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L9"
     },
     {
       "id": "src_services_eventmanagementservice_eventmanagementservice_cancreateevents",
@@ -66064,6 +65812,18 @@
       "source_location": "L21"
     },
     {
+      "id": "src_components_chats_verifiedchatbadge_verifiedchatbadge",
+      "label": "VerifiedChatBadge()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "verifiedchatbadge()",
+      "source_file": "src/components/chats/VerifiedChatBadge.tsx",
+      "source_location": "L19"
+    },
+    {
       "id": "src_components_discover_becauseyoulikesection_becauseyoulikesection",
       "label": "BecauseYouLikeSection()",
       "_callable": true,
@@ -66146,6 +65906,18 @@
       "norm_label": "mapcalendartoursection()",
       "source_file": "src/components/discover/MapCalendarTourSection.tsx",
       "source_location": "L30"
+    },
+    {
+      "id": "src_components_events_eventdetailsmodal_eventdetailsmodal",
+      "label": "EventDetailsModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "eventdetailsmodal()",
+      "source_file": "src/components/events/EventDetailsModal.tsx",
+      "source_location": "L98"
     },
     {
       "id": "src_components_events_swiftuieventcard_swiftuieventcard",
@@ -66388,16 +66160,16 @@
       "source_location": "L125"
     },
     {
-      "id": "src_components_search_eventfilters_eventfilters",
-      "label": "EventFilters()",
+      "id": "src_components_reviews_venuecard_venuecard",
+      "label": "VenueCard()",
       "_callable": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "eventfilters()",
-      "source_file": "src/components/search/EventFilters.tsx",
-      "source_location": "L61"
+      "norm_label": "venuecard()",
+      "source_file": "src/components/reviews/VenueCard.tsx",
+      "source_location": "L17"
     },
     {
       "id": "src_components_search_locationfilterbutton_locationfilterbutton",
@@ -66410,18 +66182,6 @@
       "norm_label": "locationfilterbutton()",
       "source_file": "src/components/search/LocationFilterButton.tsx",
       "source_location": "L19"
-    },
-    {
-      "id": "src_components_searchbar_searchbar_searchbar",
-      "label": "SearchBar()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "searchbar()",
-      "source_file": "src/components/SearchBar/SearchBar.tsx",
-      "source_location": "L114"
     },
     {
       "id": "src_components_ui_calendar_calendar",
@@ -66554,6 +66314,18 @@
       "norm_label": "useintersectiontrackinglist()",
       "source_file": "src/hooks/useIntersectionTracking.ts",
       "source_location": "L128"
+    },
+    {
+      "id": "src_hooks_useviewtracking_useviewtracking",
+      "label": "useViewTracking()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "useviewtracking()",
+      "source_file": "src/hooks/useViewTracking.ts",
+      "source_location": "L29"
     },
     {
       "id": "src_lib_utils_safedateformat",
@@ -66988,6 +66760,18 @@
       "source_location": "L15"
     },
     {
+      "id": "src_services_reviewservice_reviewservice_getvenuereviews",
+      "label": ".getVenueReviews()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": ".getvenuereviews()",
+      "source_file": "src/services/reviewService.ts",
+      "source_location": "L2375"
+    },
+    {
       "id": "src_services_unifiedfeedservice_unifiedfeedservice_getreviewfeeditembyid",
       "label": ".getReviewFeedItemById()",
       "_callable": true,
@@ -67216,100 +67000,64 @@
       "source_location": "L135"
     },
     {
-      "id": "src_utils_citynormalization_arecitiesequal",
-      "label": "areCitiesEqual()",
+      "id": "src_services_verifiedchatservice_verifiedchatservice_getorcreateverifiedchat",
+      "label": ".getOrCreateVerifiedChat()",
       "_callable": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "arecitiesequal()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L92"
+      "norm_label": ".getorcreateverifiedchat()",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L25"
     },
     {
-      "id": "src_utils_citynormalization_deduplicatecities",
-      "label": "deduplicateCities()",
+      "id": "src_services_verifiedchatservice_verifiedchatservice_getverifiedchatinfo",
+      "label": ".getVerifiedChatInfo()",
       "_callable": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "deduplicatecities()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L137"
+      "norm_label": ".getverifiedchatinfo()",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L87"
     },
     {
-      "id": "src_utils_citynormalization_findsimilarcities",
-      "label": "findSimilarCities()",
+      "id": "src_services_verifiedchatservice_verifiedchatservice_isusermember",
+      "label": ".isUserMember()",
       "_callable": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "findsimilarcities()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L121"
+      "norm_label": ".isusermember()",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L127"
     },
     {
-      "id": "src_utils_citynormalization_formatcitynamefordisplay",
-      "label": "formatCityNameForDisplay()",
+      "id": "src_services_verifiedchatservice_verifiedchatservice_joinoropenverifiedchat",
+      "label": ".joinOrOpenVerifiedChat()",
       "_callable": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "formatcitynamefordisplay()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L188"
+      "norm_label": ".joinoropenverifiedchat()",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L156"
     },
     {
-      "id": "src_utils_citynormalization_formatcitystatefordisplay",
-      "label": "formatCityStateForDisplay()",
+      "id": "src_services_verifiedchatservice_verifiedchatservice_joinverifiedchat",
+      "label": ".joinVerifiedChat()",
       "_callable": true,
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "formatcitystatefordisplay()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L239"
-    },
-    {
-      "id": "src_utils_citynormalization_getcanonicalcityname",
-      "label": "getCanonicalCityName()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "getcanonicalcityname()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L51"
-    },
-    {
-      "id": "src_utils_citynormalization_groupcityvariations",
-      "label": "groupCityVariations()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "groupcityvariations()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L101"
-    },
-    {
-      "id": "src_utils_citynormalization_normalizecityname",
-      "label": "normalizeCityName()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "normalizecityname()",
-      "source_file": "src/utils/cityNormalization.ts",
-      "source_location": "L11"
+      "norm_label": ".joinverifiedchat()",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L62"
     },
     {
       "id": "src_utils_entityuuidresolver_geteventmetadata",
@@ -67334,6 +67082,30 @@
       "norm_label": "geteventuuid()",
       "source_file": "src/utils/entityUuidResolver.ts",
       "source_location": "L11"
+    },
+    {
+      "id": "src_utils_entityuuidresolver_getvenuemetadata",
+      "label": "getVenueMetadata()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "getvenuemetadata()",
+      "source_file": "src/utils/entityUuidResolver.ts",
+      "source_location": "L126"
+    },
+    {
+      "id": "src_utils_entityuuidresolver_getvenueuuid",
+      "label": "getVenueUuid()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "getvenueuuid()",
+      "source_file": "src/utils/entityUuidResolver.ts",
+      "source_location": "L63"
     },
     {
       "id": "src_utils_eventimagefallbacks_getallfallbackeventimages",
@@ -67526,6 +67298,42 @@
       "norm_label": "triggernativeeventshare()",
       "source_file": "src/utils/nativeShareService.ts",
       "source_location": "L19"
+    },
+    {
+      "id": "src_utils_trackinghelpers_extracteventmetadata",
+      "label": "extractEventMetadata()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "extracteventmetadata()",
+      "source_file": "src/utils/trackingHelpers.ts",
+      "source_location": "L11"
+    },
+    {
+      "id": "src_utils_trackinghelpers_extractticketprovider",
+      "label": "extractTicketProvider()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "extractticketprovider()",
+      "source_file": "src/utils/trackingHelpers.ts",
+      "source_location": "L108"
+    },
+    {
+      "id": "src_utils_trackinghelpers_getdaysuntilevent",
+      "label": "getDaysUntilEvent()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "getdaysuntilevent()",
+      "source_file": "src/utils/trackingHelpers.ts",
+      "source_location": "L30"
     },
     {
       "id": "mobile_app_artist_id_artistdetailscreen",
@@ -68654,6 +68462,150 @@
       "norm_label": "menucategory()",
       "source_file": "src/components/MenuCategory/MenuCategory.tsx",
       "source_location": "L48"
+    },
+    {
+      "id": "src_components_artists_artistfollowbutton_artistfollowbutton",
+      "label": "ArtistFollowButton()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistfollowbutton()",
+      "source_file": "src/components/artists/ArtistFollowButton.tsx",
+      "source_location": "L26"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_followartists",
+      "label": ".followArtists()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".followartists()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L191"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_getartistfollowers",
+      "label": ".getArtistFollowers()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".getartistfollowers()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L537"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_getartistfollowstats",
+      "label": ".getArtistFollowStats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".getartistfollowstats()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L277"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_getartistfollowstatsbyname",
+      "label": ".getArtistFollowStatsByName()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".getartistfollowstatsbyname()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L302"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_getartistuuidbyjambaseid",
+      "label": ".getArtistUuidByJambaseId()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".getartistuuidbyjambaseid()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L586"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_getartistuuidbyname",
+      "label": ".getArtistUuidByName()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".getartistuuidbyname()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L625"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_getfollowercount",
+      "label": ".getFollowerCount()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".getfollowercount()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L252"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_isfollowingartist",
+      "label": ".isFollowingArtist()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".isfollowingartist()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L226"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_setartistfollow",
+      "label": ".setArtistFollow()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".setartistfollow()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_setartistfollowbyname",
+      "label": ".setArtistFollowByName()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".setartistfollowbyname()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L100"
+    },
+    {
+      "id": "src_services_artistfollowservice_artistfollowservice_subscribetoartistfollows",
+      "label": ".subscribeToArtistFollows()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": ".subscribetoartistfollows()",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L655"
     },
     {
       "id": "src_services_emailservice_emailservice_sendemail",
@@ -70190,6 +70142,54 @@
       "norm_label": "unifiedchatview()",
       "source_file": "src/components/UnifiedChatView.tsx",
       "source_location": "L262"
+    },
+    {
+      "id": "src_hooks_use_toast_addtoremovequeue",
+      "label": "addToRemoveQueue()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "addtoremovequeue()",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L58"
+    },
+    {
+      "id": "src_hooks_use_toast_dispatch",
+      "label": "dispatch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "dispatch()",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L133"
+    },
+    {
+      "id": "src_hooks_use_toast_genid",
+      "label": "genId()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "genid()",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L27"
+    },
+    {
+      "id": "src_hooks_use_toast_reducer",
+      "label": "reducer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "reducer()",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L74"
     },
     {
       "id": "src_hooks_usechatreactions_usechatreactions",
@@ -87977,28 +87977,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_eventcard",
-      "label": "src/components/EventCard.tsx",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "src/components/eventcard.tsx",
-      "source_file": "src/components/EventCard.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_feed_friendsuggestionsrail",
-      "label": "feed/FriendSuggestionsRail.tsx",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "feed/friendsuggestionsrail.tsx",
-      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_profile_profiledraftssummary",
       "label": "ProfileDraftsSummary.tsx",
       "_origin": "ast",
@@ -88131,17 +88109,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_ui_progressiveimage",
-      "label": "ProgressiveImage.tsx",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "progressiveimage.tsx",
-      "source_file": "src/components/ui/ProgressiveImage.tsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_ui_review_images_upload",
       "label": "review-images-upload.tsx",
       "_origin": "ast",
@@ -88162,39 +88129,6 @@
       "norm_label": "thumb_output",
       "source_file": "src/components/ui/review-images-upload.tsx",
       "source_location": "L36"
-    },
-    {
-      "id": "src_components_ui_scroll_area",
-      "label": "src/components/ui/scroll-area.tsx",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "src/components/ui/scroll-area.tsx",
-      "source_file": "src/components/ui/scroll-area.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_scroll_area_scrollarea",
-      "label": "ScrollArea",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "scrollarea",
-      "source_file": "src/components/ui/scroll-area.tsx",
-      "source_location": "L6"
-    },
-    {
-      "id": "src_components_ui_scroll_area_scrollbar",
-      "label": "ScrollBar",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "scrollbar",
-      "source_file": "src/components/ui/scroll-area.tsx",
-      "source_location": "L24"
     },
     {
       "id": "src_components_ui_slider",
@@ -88219,14 +88153,14 @@
       "source_location": "L20"
     },
     {
-      "id": "src_hooks_useautosave",
-      "label": "src/hooks/useAutoSave.ts",
+      "id": "src_components_workingconnectionbadge",
+      "label": "WorkingConnectionBadge.tsx",
       "_origin": "ast",
       "community": 13,
       "community_name": "src/components/profile/ProfileView.tsx",
       "file_type": "code",
-      "norm_label": "src/hooks/useautosave.ts",
-      "source_file": "src/hooks/useAutoSave.ts",
+      "norm_label": "workingconnectionbadge.tsx",
+      "source_file": "src/components/WorkingConnectionBadge.tsx",
       "source_location": "L1"
     },
     {
@@ -88263,50 +88197,6 @@
       "source_location": "L116"
     },
     {
-      "id": "src_hooks_usesetlist",
-      "label": "src/hooks/useSetlist.ts",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "src/hooks/usesetlist.ts",
-      "source_file": "src/hooks/useSetlist.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_services_draftreviewservice",
-      "label": "src/services/draftReviewService.ts",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "src/services/draftreviewservice.ts",
-      "source_file": "src/services/draftReviewService.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_utils_eventstatusutils",
-      "label": "src/utils/eventStatusUtils.ts",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "src/utils/eventstatusutils.ts",
-      "source_file": "src/utils/eventStatusUtils.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_utils_haptics",
-      "label": "haptics.ts",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "code",
-      "norm_label": "haptics.ts",
-      "source_file": "src/utils/haptics.ts",
-      "source_location": "L1"
-    },
-    {
       "id": "src_utils_reviewthumbnailcrop",
       "label": "reviewThumbnailCrop.ts",
       "_origin": "ast",
@@ -88338,17 +88228,6 @@
       "norm_label": "review_thumbnail_aspect_ratio",
       "source_file": "src/utils/reviewThumbnailCrop.ts",
       "source_location": "L3"
-    },
-    {
-      "id": "src_components_eventcard_rationale_62",
-      "label": "TODO: Implement review functionality for past events",
-      "_origin": "ast",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "file_type": "rationale",
-      "norm_label": "todo: implement review functionality for past events",
-      "source_file": "src/components/EventCard.tsx",
-      "source_location": "L62"
     },
     {
       "id": "src_components_profile_profileview_rationale_367",
@@ -89234,17 +89113,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_chats_verifiedchatbadge",
-      "label": "VerifiedChatBadge.tsx",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "verifiedchatbadge.tsx",
-      "source_file": "src/components/chats/VerifiedChatBadge.tsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_discover_genreshowsmodal",
       "label": "GenreShowsModal.tsx",
       "_origin": "ast",
@@ -89421,17 +89289,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_social_friendsinterestedbadge",
-      "label": "FriendsInterestedBadge.tsx",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "friendsinterestedbadge.tsx",
-      "source_file": "src/components/social/FriendsInterestedBadge.tsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_social_popularityindicator",
       "label": "PopularityIndicator.tsx",
       "_origin": "ast",
@@ -89441,83 +89298,6 @@
       "norm_label": "popularityindicator.tsx",
       "source_file": "src/components/social/PopularityIndicator.tsx",
       "source_location": "L1"
-    },
-    {
-      "id": "src_components_social_trendingbadge",
-      "label": "TrendingBadge.tsx",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "trendingbadge.tsx",
-      "source_file": "src/components/social/TrendingBadge.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_accordion",
-      "label": "src/components/ui/accordion.tsx",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "src/components/ui/accordion.tsx",
-      "source_file": "src/components/ui/accordion.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_accordion_accordioncontent",
-      "label": "AccordionContent",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "accordioncontent",
-      "source_file": "src/components/ui/accordion.tsx",
-      "source_location": "L41"
-    },
-    {
-      "id": "src_components_ui_accordion_accordionitem",
-      "label": "AccordionItem",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "accordionitem",
-      "source_file": "src/components/ui/accordion.tsx",
-      "source_location": "L9"
-    },
-    {
-      "id": "src_components_ui_accordion_accordiontrigger",
-      "label": "AccordionTrigger",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "accordiontrigger",
-      "source_file": "src/components/ui/accordion.tsx",
-      "source_location": "L21"
-    },
-    {
-      "id": "src_components_ui_badge",
-      "label": "src/components/ui/badge.tsx",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "src/components/ui/badge.tsx",
-      "source_file": "src/components/ui/badge.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_badge_badgevariants",
-      "label": "badgeVariants",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "badgevariants",
-      "source_file": "src/components/ui/badge.tsx",
-      "source_location": "L6"
     },
     {
       "id": "src_hooks_usedetailmodallayout",
@@ -89605,17 +89385,6 @@
       "file_type": "code",
       "norm_label": "src/services/inappshareservice.ts",
       "source_file": "src/services/inAppShareService.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_services_verifiedchatservice",
-      "label": "verifiedChatService.ts",
-      "_origin": "ast",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "file_type": "code",
-      "norm_label": "verifiedchatservice.ts",
-      "source_file": "src/services/verifiedChatService.ts",
       "source_location": "L1"
     },
     {
@@ -106658,17 +106427,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_services_analyticsdataservice",
-      "label": "analyticsDataService.ts",
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "analyticsdataservice.ts",
-      "source_file": "src/services/analyticsDataService.ts",
-      "source_location": "L1"
-    },
-    {
       "id": "src_services_businessanalyticsservice",
       "label": "businessAnalyticsService.ts",
       "_origin": "ast",
@@ -106680,17 +106438,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_services_creatoranalyticsservice",
-      "label": "creatorAnalyticsService.ts",
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "creatoranalyticsservice.ts",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L1"
-    },
-    {
       "id": "src_services_emailservice",
       "label": "src/services/emailService.ts",
       "_origin": "ast",
@@ -106699,28 +106446,6 @@
       "file_type": "code",
       "norm_label": "src/services/emailservice.ts",
       "source_file": "src/services/emailService.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_services_promotionanalyticsservice",
-      "label": "promotionAnalyticsService.ts",
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "promotionanalyticsservice.ts",
-      "source_file": "src/services/promotionAnalyticsService.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_services_vipanalyticsservice",
-      "label": "vipAnalyticsService.ts",
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "code",
-      "norm_label": "vipanalyticsservice.ts",
-      "source_file": "src/services/vipAnalyticsService.ts",
       "source_location": "L1"
     },
     {
@@ -106744,17 +106469,6 @@
       "norm_label": "important: supabase rejects redirectto/emailredirectto that isn't allowlisted.",
       "source_file": "src/pages/Auth.tsx",
       "source_location": "L83"
-    },
-    {
-      "id": "src_services_creatoranalyticsservice_rationale_404",
-      "label": "TODO: Implement follower gains tracking",
-      "_origin": "ast",
-      "community": 23,
-      "community_name": "Card",
-      "file_type": "rationale",
-      "norm_label": "todo: implement follower gains tracking",
-      "source_file": "src/services/creatorAnalyticsService.ts",
-      "source_location": "L404"
     },
     {
       "id": "brag_output_composition_brief",
@@ -112682,6 +112396,17 @@
       "source_location": "L1"
     },
     {
+      "id": "src_components_eventcard",
+      "label": "src/components/EventCard.tsx",
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "src/components/eventcard.tsx",
+      "source_file": "src/components/EventCard.tsx",
+      "source_location": "L1"
+    },
+    {
       "id": "src_components_events_eventmap",
       "label": "src/components/events/EventMap.tsx",
       "_origin": "ast",
@@ -112726,37 +112451,59 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_notifications_notificationbell",
-      "label": "src/components/notifications/NotificationBell.tsx",
+      "id": "src_components_feed_friendsuggestionsrail",
+      "label": "feed/FriendSuggestionsRail.tsx",
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "src/components/notifications/notificationbell.tsx",
-      "source_file": "src/components/notifications/NotificationBell.tsx",
+      "norm_label": "feed/friendsuggestionsrail.tsx",
+      "source_file": "src/components/feed/FriendSuggestionsRail.tsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_pageactions",
-      "label": "PageActions.tsx",
+      "id": "src_components_ui_progressiveimage",
+      "label": "ProgressiveImage.tsx",
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "pageactions.tsx",
-      "source_file": "src/components/PageActions.tsx",
+      "norm_label": "progressiveimage.tsx",
+      "source_file": "src/components/ui/ProgressiveImage.tsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_reviews_venuecard",
-      "label": "src/components/reviews/VenueCard.tsx",
+      "id": "src_components_ui_scroll_area",
+      "label": "src/components/ui/scroll-area.tsx",
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "src/components/reviews/venuecard.tsx",
-      "source_file": "src/components/reviews/VenueCard.tsx",
+      "norm_label": "src/components/ui/scroll-area.tsx",
+      "source_file": "src/components/ui/scroll-area.tsx",
       "source_location": "L1"
+    },
+    {
+      "id": "src_components_ui_scroll_area_scrollarea",
+      "label": "ScrollArea",
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "scrollarea",
+      "source_file": "src/components/ui/scroll-area.tsx",
+      "source_location": "L6"
+    },
+    {
+      "id": "src_components_ui_scroll_area_scrollbar",
+      "label": "ScrollBar",
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "scrollbar",
+      "source_file": "src/components/ui/scroll-area.tsx",
+      "source_location": "L24"
     },
     {
       "id": "src_components_unifiedfeed",
@@ -112803,26 +112550,15 @@
       "source_location": "L131"
     },
     {
-      "id": "src_hooks_usenotificationsunread",
-      "label": "useNotificationsUnread.ts",
+      "id": "src_hooks_usesetlist",
+      "label": "src/hooks/useSetlist.ts",
       "_origin": "ast",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "file_type": "code",
-      "norm_label": "usenotificationsunread.ts",
-      "source_file": "src/hooks/useNotificationsUnread.ts",
+      "norm_label": "src/hooks/usesetlist.ts",
+      "source_file": "src/hooks/useSetlist.ts",
       "source_location": "L1"
-    },
-    {
-      "id": "src_hooks_usenotificationsunread_notifications_unread_query_key",
-      "label": "NOTIFICATIONS_UNREAD_QUERY_KEY",
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "notifications_unread_query_key",
-      "source_file": "src/hooks/useNotificationsUnread.ts",
-      "source_location": "L4"
     },
     {
       "id": "src_lib_eventnames",
@@ -112869,17 +112605,6 @@
       "source_location": "L27"
     },
     {
-      "id": "src_services_artistfollowservice",
-      "label": "src/services/artistFollowService.ts",
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "src/services/artistfollowservice.ts",
-      "source_file": "src/services/artistFollowService.ts",
-      "source_location": "L1"
-    },
-    {
       "id": "src_services_unifiedeventsearchservice",
       "label": "unifiedEventSearchService.ts",
       "_origin": "ast",
@@ -112888,17 +112613,6 @@
       "file_type": "code",
       "norm_label": "unifiedeventsearchservice.ts",
       "source_file": "src/services/unifiedEventSearchService.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_types_artistfollow",
-      "label": "artistFollow.ts",
-      "_origin": "ast",
-      "community": 280,
-      "community_name": "src/components/UnifiedFeed.tsx",
-      "file_type": "code",
-      "norm_label": "artistfollow.ts",
-      "source_file": "src/types/artistFollow.ts",
       "source_location": "L1"
     },
     {
@@ -112913,6 +112627,28 @@
       "source_location": "L1"
     },
     {
+      "id": "src_utils_eventstatusutils",
+      "label": "src/utils/eventStatusUtils.ts",
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "src/utils/eventstatusutils.ts",
+      "source_file": "src/utils/eventStatusUtils.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_utils_haptics",
+      "label": "haptics.ts",
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "code",
+      "norm_label": "haptics.ts",
+      "source_file": "src/utils/haptics.ts",
+      "source_location": "L1"
+    },
+    {
       "id": "src_utils_mapboxtoken",
       "label": "mapboxToken.ts",
       "_origin": "ast",
@@ -112922,6 +112658,17 @@
       "norm_label": "mapboxtoken.ts",
       "source_file": "src/utils/mapboxToken.ts",
       "source_location": "L1"
+    },
+    {
+      "id": "src_components_eventcard_rationale_62",
+      "label": "TODO: Implement review functionality for past events",
+      "_origin": "ast",
+      "community": 280,
+      "community_name": "src/components/UnifiedFeed.tsx",
+      "file_type": "rationale",
+      "norm_label": "todo: implement review functionality for past events",
+      "source_file": "src/components/EventCard.tsx",
+      "source_location": "L62"
     },
     {
       "id": "claude_skills_charles_color_analysis_scripts_color_rationale_238",
@@ -121215,6 +120962,17 @@
       "source_location": "L1"
     },
     {
+      "id": "src_components_notifications_notificationbell",
+      "label": "src/components/notifications/NotificationBell.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/components/notifications/notificationbell.tsx",
+      "source_file": "src/components/notifications/NotificationBell.tsx",
+      "source_location": "L1"
+    },
+    {
       "id": "src_components_onboarding_musictagsstep",
       "label": "MusicTagsStep.tsx",
       "_origin": "ast",
@@ -121235,6 +120993,127 @@
       "norm_label": "onboardingreminderbanner.tsx",
       "source_file": "src/components/onboarding/OnboardingReminderBanner.tsx",
       "source_location": "L1"
+    },
+    {
+      "id": "src_components_pageactions",
+      "label": "PageActions.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "pageactions.tsx",
+      "source_file": "src/components/PageActions.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_search_eventfilters",
+      "label": "src/components/search/EventFilters.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/components/search/eventfilters.tsx",
+      "source_file": "src/components/search/EventFilters.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_search_eventfilters_common_genres",
+      "label": "COMMON_GENRES",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "common_genres",
+      "source_file": "src/components/search/EventFilters.tsx",
+      "source_location": "L55"
+    },
+    {
+      "id": "src_components_searchbar_index",
+      "label": "SearchBar/index.ts",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "searchbar/index.ts",
+      "source_file": "src/components/SearchBar/index.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_searchbar_searchbar",
+      "label": "SearchBar.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "searchbar.tsx",
+      "source_file": "src/components/SearchBar/SearchBar.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_social_friendsinterestedbadge",
+      "label": "FriendsInterestedBadge.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "friendsinterestedbadge.tsx",
+      "source_file": "src/components/social/FriendsInterestedBadge.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_social_trendingbadge",
+      "label": "TrendingBadge.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "trendingbadge.tsx",
+      "source_file": "src/components/social/TrendingBadge.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_ui_accordion",
+      "label": "src/components/ui/accordion.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/components/ui/accordion.tsx",
+      "source_file": "src/components/ui/accordion.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_ui_accordion_accordioncontent",
+      "label": "AccordionContent",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "accordioncontent",
+      "source_file": "src/components/ui/accordion.tsx",
+      "source_location": "L41"
+    },
+    {
+      "id": "src_components_ui_accordion_accordionitem",
+      "label": "AccordionItem",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "accordionitem",
+      "source_file": "src/components/ui/accordion.tsx",
+      "source_location": "L9"
+    },
+    {
+      "id": "src_components_ui_accordion_accordiontrigger",
+      "label": "AccordionTrigger",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "accordiontrigger",
+      "source_file": "src/components/ui/accordion.tsx",
+      "source_location": "L21"
     },
     {
       "id": "src_components_ui_alert",
@@ -121290,6 +121169,50 @@
       "norm_label": "alertvariants",
       "source_file": "src/components/ui/alert.tsx",
       "source_location": "L6"
+    },
+    {
+      "id": "src_components_ui_badge",
+      "label": "src/components/ui/badge.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/components/ui/badge.tsx",
+      "source_file": "src/components/ui/badge.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_ui_badge_badgevariants",
+      "label": "badgeVariants",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "badgevariants",
+      "source_file": "src/components/ui/badge.tsx",
+      "source_location": "L6"
+    },
+    {
+      "id": "src_components_ui_checkbox",
+      "label": "src/components/ui/checkbox.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/components/ui/checkbox.tsx",
+      "source_file": "src/components/ui/checkbox.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_ui_checkbox_checkbox",
+      "label": "Checkbox",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "checkbox",
+      "source_file": "src/components/ui/checkbox.tsx",
+      "source_location": "L7"
     },
     {
       "id": "src_components_ui_command",
@@ -121477,6 +121400,28 @@
       "norm_label": "dropdownmenusubtrigger",
       "source_file": "src/components/ui/dropdown-menu.tsx",
       "source_location": "L19"
+    },
+    {
+      "id": "src_components_ui_popover",
+      "label": "src/components/ui/popover.tsx",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/components/ui/popover.tsx",
+      "source_file": "src/components/ui/popover.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_ui_popover_popovercontent",
+      "label": "PopoverContent",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "popovercontent",
+      "source_file": "src/components/ui/popover.tsx",
+      "source_location": "L10"
     },
     {
       "id": "src_components_ui_select_selectlabel",
@@ -121765,59 +121710,26 @@
       "source_location": "L6"
     },
     {
-      "id": "src_hooks_use_toast",
-      "label": "src/hooks/use-toast.ts",
+      "id": "src_hooks_usenotificationsunread",
+      "label": "useNotificationsUnread.ts",
       "_origin": "ast",
       "community": 4,
       "community_name": "cn",
       "file_type": "code",
-      "norm_label": "src/hooks/use-toast.ts",
-      "source_file": "src/hooks/use-toast.ts",
+      "norm_label": "usenotificationsunread.ts",
+      "source_file": "src/hooks/useNotificationsUnread.ts",
       "source_location": "L1"
     },
     {
-      "id": "src_hooks_use_toast_actiontypes",
-      "label": "actionTypes",
+      "id": "src_hooks_usenotificationsunread_notifications_unread_query_key",
+      "label": "NOTIFICATIONS_UNREAD_QUERY_KEY",
       "_origin": "ast",
       "community": 4,
       "community_name": "cn",
       "file_type": "code",
-      "norm_label": "actiontypes",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L18"
-    },
-    {
-      "id": "src_hooks_use_toast_listeners",
-      "label": "listeners",
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "listeners",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L129"
-    },
-    {
-      "id": "src_hooks_use_toast_memorystate",
-      "label": "memoryState",
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "memorystate",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L131"
-    },
-    {
-      "id": "src_hooks_use_toast_toasttimeouts",
-      "label": "toastTimeouts",
-      "_origin": "ast",
-      "community": 4,
-      "community_name": "cn",
-      "file_type": "code",
-      "norm_label": "toasttimeouts",
-      "source_file": "src/hooks/use-toast.ts",
-      "source_location": "L56"
+      "norm_label": "notifications_unread_query_key",
+      "source_file": "src/hooks/useNotificationsUnread.ts",
+      "source_location": "L4"
     },
     {
       "id": "src_services_unifiedvenuesearchservice",
@@ -121828,6 +121740,17 @@
       "file_type": "code",
       "norm_label": "src/services/unifiedvenuesearchservice.ts",
       "source_file": "src/services/unifiedVenueSearchService.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_utils_citynormalization",
+      "label": "src/utils/cityNormalization.ts",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "cn",
+      "file_type": "code",
+      "norm_label": "src/utils/citynormalization.ts",
+      "source_file": "src/utils/cityNormalization.ts",
       "source_location": "L1"
     },
     {
@@ -122832,17 +122755,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_workingconnectionbadge",
-      "label": "WorkingConnectionBadge.tsx",
-      "_origin": "ast",
-      "community": 45,
-      "community_name": "src/integrations/supabase/client.ts",
-      "file_type": "code",
-      "norm_label": "workingconnectionbadge.tsx",
-      "source_file": "src/components/WorkingConnectionBadge.tsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_hooks_useaccounttype",
       "label": "src/hooks/useAccountType.ts",
       "_origin": "ast",
@@ -122862,6 +122774,17 @@
       "file_type": "code",
       "norm_label": "useactivitytracker.ts",
       "source_file": "src/hooks/useActivityTracker.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_hooks_useautosave",
+      "label": "src/hooks/useAutoSave.ts",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "src/hooks/useautosave.ts",
+      "source_file": "src/hooks/useAutoSave.ts",
       "source_location": "L1"
     },
     {
@@ -123008,6 +122931,17 @@
       "source_location": "L38"
     },
     {
+      "id": "src_services_analyticsdataservice",
+      "label": "analyticsDataService.ts",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "analyticsdataservice.ts",
+      "source_file": "src/services/analyticsDataService.ts",
+      "source_location": "L1"
+    },
+    {
       "id": "src_services_artistexclusionservice",
       "label": "src/services/artistExclusionService.ts",
       "_origin": "ast",
@@ -123083,6 +123017,28 @@
       "norm_label": "cachettl",
       "source_file": "src/services/cacheService.ts",
       "source_location": "L159"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice",
+      "label": "creatorAnalyticsService.ts",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "creatoranalyticsservice.ts",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_services_draftreviewservice",
+      "label": "src/services/draftReviewService.ts",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "src/services/draftreviewservice.ts",
+      "source_file": "src/services/draftReviewService.ts",
+      "source_location": "L1"
     },
     {
       "id": "src_services_eventlikesservice",
@@ -123181,6 +123137,17 @@
       "file_type": "code",
       "norm_label": "preferencesignalsservice.ts",
       "source_file": "src/services/preferenceSignalsService.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_services_promotionanalyticsservice",
+      "label": "promotionAnalyticsService.ts",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "promotionanalyticsservice.ts",
+      "source_file": "src/services/promotionAnalyticsService.ts",
       "source_location": "L1"
     },
     {
@@ -123283,6 +123250,17 @@
       "source_location": "L1"
     },
     {
+      "id": "src_services_vipanalyticsservice",
+      "label": "vipAnalyticsService.ts",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "code",
+      "norm_label": "vipanalyticsservice.ts",
+      "source_file": "src/services/vipAnalyticsService.ts",
+      "source_location": "L1"
+    },
+    {
       "id": "src_types_notifications",
       "label": "src/types/notifications.ts",
       "_origin": "ast",
@@ -123358,6 +123336,17 @@
       "norm_label": "webmaincontentclass.ts",
       "source_file": "src/utils/webMainContentClass.ts",
       "source_location": "L1"
+    },
+    {
+      "id": "src_services_creatoranalyticsservice_rationale_404",
+      "label": "TODO: Implement follower gains tracking",
+      "_origin": "ast",
+      "community": 45,
+      "community_name": "src/integrations/supabase/client.ts",
+      "file_type": "rationale",
+      "norm_label": "todo: implement follower gains tracking",
+      "source_file": "src/services/creatorAnalyticsService.ts",
+      "source_location": "L404"
     },
     {
       "id": "src_services_musictasteservice_rationale_29",
@@ -127177,6 +127166,17 @@
       "source_location": "L1"
     },
     {
+      "id": "src_components_chats_verifiedchatbadge",
+      "label": "VerifiedChatBadge.tsx",
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "verifiedchatbadge.tsx",
+      "source_file": "src/components/chats/VerifiedChatBadge.tsx",
+      "source_location": "L1"
+    },
+    {
       "id": "src_components_discover_becauseyoulikesection",
       "label": "BecauseYouLikeSection.tsx",
       "_origin": "ast",
@@ -127474,26 +127474,15 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_search_eventfilters",
-      "label": "src/components/search/EventFilters.tsx",
+      "id": "src_components_reviews_venuecard",
+      "label": "src/components/reviews/VenueCard.tsx",
       "_origin": "ast",
       "community": 501,
       "community_name": "HomeFeed.tsx",
       "file_type": "code",
-      "norm_label": "src/components/search/eventfilters.tsx",
-      "source_file": "src/components/search/EventFilters.tsx",
+      "norm_label": "src/components/reviews/venuecard.tsx",
+      "source_file": "src/components/reviews/VenueCard.tsx",
       "source_location": "L1"
-    },
-    {
-      "id": "src_components_search_eventfilters_common_genres",
-      "label": "COMMON_GENRES",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "common_genres",
-      "source_file": "src/components/search/EventFilters.tsx",
-      "source_location": "L55"
     },
     {
       "id": "src_components_search_locationfilterbutton",
@@ -127507,28 +127496,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_searchbar_index",
-      "label": "SearchBar/index.ts",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "searchbar/index.ts",
-      "source_file": "src/components/SearchBar/index.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_searchbar_searchbar",
-      "label": "SearchBar.tsx",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "searchbar.tsx",
-      "source_file": "src/components/SearchBar/SearchBar.tsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_ui_calendar",
       "label": "src/components/ui/calendar.tsx",
       "_origin": "ast",
@@ -127538,50 +127505,6 @@
       "norm_label": "src/components/ui/calendar.tsx",
       "source_file": "src/components/ui/calendar.tsx",
       "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_checkbox",
-      "label": "src/components/ui/checkbox.tsx",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "src/components/ui/checkbox.tsx",
-      "source_file": "src/components/ui/checkbox.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_checkbox_checkbox",
-      "label": "Checkbox",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "checkbox",
-      "source_file": "src/components/ui/checkbox.tsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_ui_popover",
-      "label": "src/components/ui/popover.tsx",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "src/components/ui/popover.tsx",
-      "source_file": "src/components/ui/popover.tsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_ui_popover_popovercontent",
-      "label": "PopoverContent",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "popovercontent",
-      "source_file": "src/components/ui/popover.tsx",
-      "source_location": "L10"
     },
     {
       "id": "src_components_ui_synthloader",
@@ -127903,6 +127826,17 @@
       "source_location": "L1"
     },
     {
+      "id": "src_services_verifiedchatservice",
+      "label": "verifiedChatService.ts",
+      "_origin": "ast",
+      "community": 501,
+      "community_name": "HomeFeed.tsx",
+      "file_type": "code",
+      "norm_label": "verifiedchatservice.ts",
+      "source_file": "src/services/verifiedChatService.ts",
+      "source_location": "L1"
+    },
+    {
       "id": "src_types_eventtypes",
       "label": "eventTypes.ts",
       "_origin": "ast",
@@ -127911,17 +127845,6 @@
       "file_type": "code",
       "norm_label": "eventtypes.ts",
       "source_file": "src/types/eventTypes.ts",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_utils_citynormalization",
-      "label": "src/utils/cityNormalization.ts",
-      "_origin": "ast",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "file_type": "code",
-      "norm_label": "src/utils/citynormalization.ts",
-      "source_file": "src/utils/cityNormalization.ts",
       "source_location": "L1"
     },
     {
@@ -128846,6 +128769,28 @@
       "norm_label": "use cases",
       "source_file": "apps/admin/INTEGRATIONS.md",
       "source_location": "L204"
+    },
+    {
+      "id": "src_services_artistfollowservice",
+      "label": "src/services/artistFollowService.ts",
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "src/services/artistfollowservice.ts",
+      "source_file": "src/services/artistFollowService.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_types_artistfollow",
+      "label": "artistFollow.ts",
+      "_origin": "ast",
+      "community": 507,
+      "community_name": "ArtistFollowService",
+      "file_type": "code",
+      "norm_label": "artistfollow.ts",
+      "source_file": "src/types/artistFollow.ts",
+      "source_location": "L1"
     },
     {
       "id": "apps_admin_src_components_ui_aspect_ratio",
@@ -132453,6 +132398,61 @@
       "norm_label": "chatviewcache",
       "source_file": "src/components/UnifiedChatView.tsx",
       "source_location": "L232"
+    },
+    {
+      "id": "src_hooks_use_toast",
+      "label": "src/hooks/use-toast.ts",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "src/hooks/use-toast.ts",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_hooks_use_toast_actiontypes",
+      "label": "actionTypes",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "actiontypes",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L18"
+    },
+    {
+      "id": "src_hooks_use_toast_listeners",
+      "label": "listeners",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "listeners",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L129"
+    },
+    {
+      "id": "src_hooks_use_toast_memorystate",
+      "label": "memoryState",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "memorystate",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L131"
+    },
+    {
+      "id": "src_hooks_use_toast_toasttimeouts",
+      "label": "toastTimeouts",
+      "_origin": "ast",
+      "community": 55,
+      "community_name": "src/components/UnifiedChatView.tsx",
+      "file_type": "code",
+      "norm_label": "toasttimeouts",
+      "source_file": "src/hooks/use-toast.ts",
+      "source_location": "L56"
     },
     {
       "id": "src_hooks_usechatreactions",
@@ -144640,17 +144640,6 @@
       "type": "external"
     },
     {
-      "id": "ref_radix_ui_react_scroll_area",
-      "label": "ref_radix_ui_react_scroll_area",
-      "community": 13,
-      "community_name": "src/components/profile/ProfileView.tsx",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_radix_ui_react_scroll_area",
-      "source_file": "",
-      "type": "external"
-    },
-    {
       "id": "ref_radix_ui_react_slider",
       "label": "ref_radix_ui_react_slider",
       "community": 13,
@@ -144856,17 +144845,6 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_lib_download",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_radix_ui_react_accordion",
-      "label": "ref_radix_ui_react_accordion",
-      "community": 138,
-      "community_name": "src/components/events/EventDetailsModal.tsx",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_radix_ui_react_accordion",
       "source_file": "",
       "type": "external"
     },
@@ -146092,13 +146070,13 @@
       "type": "external"
     },
     {
-      "id": "ref_tanstack_react_query",
-      "label": "ref_tanstack_react_query",
+      "id": "ref_radix_ui_react_scroll_area",
+      "label": "ref_radix_ui_react_scroll_area",
       "community": 280,
       "community_name": "src/components/UnifiedFeed.tsx",
       "external": true,
       "file_type": "concept",
-      "norm_label": "ref_tanstack_react_query",
+      "norm_label": "ref_radix_ui_react_scroll_area",
       "source_file": "",
       "type": "external"
     },
@@ -146356,6 +146334,28 @@
       "type": "external"
     },
     {
+      "id": "ref_radix_ui_react_accordion",
+      "label": "ref_radix_ui_react_accordion",
+      "community": 4,
+      "community_name": "cn",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_radix_ui_react_accordion",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "ref_radix_ui_react_checkbox",
+      "label": "ref_radix_ui_react_checkbox",
+      "community": 4,
+      "community_name": "cn",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_radix_ui_react_checkbox",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "ref_radix_ui_react_dialog",
       "label": "ref_radix_ui_react_dialog",
       "community": 4,
@@ -146378,6 +146378,17 @@
       "type": "external"
     },
     {
+      "id": "ref_radix_ui_react_popover",
+      "label": "ref_radix_ui_react_popover",
+      "community": 4,
+      "community_name": "cn",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_radix_ui_react_popover",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "ref_radix_ui_react_toast",
       "label": "ref_radix_ui_react_toast",
       "community": 4,
@@ -146385,6 +146396,17 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_radix_ui_react_toast",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "ref_tanstack_react_query",
+      "label": "ref_tanstack_react_query",
+      "community": 4,
+      "community_name": "cn",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_tanstack_react_query",
       "source_file": "",
       "type": "external"
     },
@@ -146913,28 +146935,6 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_clsx",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_radix_ui_react_checkbox",
-      "label": "ref_radix_ui_react_checkbox",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_radix_ui_react_checkbox",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_radix_ui_react_popover",
-      "label": "ref_radix_ui_react_popover",
-      "community": 501,
-      "community_name": "HomeFeed.tsx",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_radix_ui_react_popover",
       "source_file": "",
       "type": "external"
     },
@@ -223612,6 +223612,18 @@
     },
     {
       "source": "src_components_pageactions_pageactions",
+      "target": "src_components_ui_button_button",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "src/components/PageActions.tsx",
+      "source_location": "L101",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_pageactions_pageactions",
       "target": "src_services_chatservice_fetchuserchats",
       "relation": "calls",
       "_origin": "ast",
@@ -223631,7 +223643,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/PageActions.tsx",
-      "source_location": "L94",
+      "source_location": "L96",
       "weight": 1.0
     },
     {
@@ -223643,19 +223655,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/PageActions.tsx",
-      "source_location": "L95",
-      "weight": 1.0
-    },
-    {
-      "source": "src_components_pageactions_pageactions",
-      "target": "src_components_ui_button_button",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "src/components/PageActions.tsx",
-      "source_location": "L99",
+      "source_location": "L97",
       "weight": 1.0
     },
     {
@@ -234508,18 +234508,6 @@
     },
     {
       "source": "src_hooks_usemainnavitems_usemainnavitems",
-      "target": "src_services_badgeservice_badgeservice_updatebadgecount",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "src/hooks/useMainNavItems.ts",
-      "source_location": "L126",
-      "weight": 1.0
-    },
-    {
-      "source": "src_hooks_usemainnavitems_usemainnavitems",
       "target": "src_utils_scrollapptotop_scrollapptotop",
       "relation": "calls",
       "_origin": "ast",
@@ -234527,7 +234515,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/hooks/useMainNavItems.ts",
-      "source_location": "L256",
+      "source_location": "L260",
       "weight": 1.0
     },
     {
@@ -254648,7 +254636,7 @@
       "context": "import",
       "deferred": true,
       "source_file": "src/hooks/useMainNavItems.ts",
-      "source_location": "L125",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -544136,5 +544124,5 @@
       "source_file": "mobile/PARITY.md"
     }
   ],
-  "built_at_commit": "504c162534ed28c8a6bda369b53e049ac8def1cd"
+  "built_at_commit": "1e0daadd713d1edcb41c5ed9383bcedeb101f826"
 }

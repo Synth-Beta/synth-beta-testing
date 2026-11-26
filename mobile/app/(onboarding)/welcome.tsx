@@ -96,7 +96,7 @@ export default function WelcomeScreen() {
 
             <View style={styles.footer}>
                 <SynthButton
-                    title="Get Started"
+                    title="Get started"
                     variant="primary"
                     onPress={handleStart}
                     style={styles.button}

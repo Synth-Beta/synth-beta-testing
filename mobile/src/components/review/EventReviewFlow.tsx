@@ -14,7 +14,7 @@ import {
     Alert,
     Switch,
 } from 'react-native';
-import { CalendarDays, ChevronLeft, X } from 'lucide-react-native';
+import { CalendarDays, Check, ChevronLeft, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -489,7 +489,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
         const artistName = formData.selectedArtist?.name;
         const m: Record<number, CategoryConfig> = {
             2: {
-                title: 'Artist Performance',
+                title: 'Artist performance',
                 subtitle: artistName
                     ? `How did ${artistName} deliver live?`
                     : 'How did the artist deliver live?',
@@ -498,14 +498,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 suggestions: ARTIST_SUGGESTIONS,
             },
             3: {
-                title: 'Production Quality',
+                title: 'Production quality',
                 subtitle: 'Lights, visuals, sound mix — did production elevate the night?',
                 ratingKey: 'productionRating',
                 feedbackKey: 'productionFeedback',
                 suggestions: PRODUCTION_SUGGESTIONS,
             },
             4: {
-                title: 'Venue Experience',
+                title: 'Venue experience',
                 subtitle: formData.selectedVenue?.name
                     ? `What was ${formData.selectedVenue.name} like?`
                     : 'Staff, comfort, lines, vibe inside the venue.',
@@ -657,7 +657,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 <SynthText variant="accent" style={styles.mb8}>What you're sharing</SynthText>
                 {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
                     <View style={styles.checkRow}>
-                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <Check size={16} color={SynthTokens.colors.success} style={styles.checkMark} />
                         <SynthText variant="meta">
                             <SynthText variant="meta" style={{ fontWeight: '700' }}>{formData.selectedArtist.name}</SynthText>
                             {' at '}
@@ -667,31 +667,31 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 ) : null}
                 {formData.eventDate ? (
                     <View style={styles.checkRow}>
-                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <Check size={16} color={SynthTokens.colors.success} style={styles.checkMark} />
                         <SynthText variant="meta">{formData.eventDate}</SynthText>
                     </View>
                 ) : null}
                 {formData.ticketPricePaid ? (
                     <View style={styles.checkRow}>
-                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <Check size={16} color={SynthTokens.colors.success} style={styles.checkMark} />
                         <SynthText variant="meta">Ticket price: ${formData.ticketPricePaid}</SynthText>
                     </View>
                 ) : null}
                 {formData.reviewText ? (
                     <View style={styles.checkRow}>
-                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <Check size={16} color={SynthTokens.colors.success} style={styles.checkMark} />
                         <SynthText variant="meta">Written story ({formData.reviewText.length} characters)</SynthText>
                     </View>
                 ) : null}
                 {formData.photos.length > 0 ? (
                     <View style={styles.checkRow}>
-                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <Check size={16} color={SynthTokens.colors.success} style={styles.checkMark} />
                         <SynthText variant="meta">{formData.photos.length} photo{formData.photos.length !== 1 ? 's' : ''} attached</SynthText>
                     </View>
                 ) : null}
                 {formData.attendees.length > 0 ? (
                     <View style={styles.checkRow}>
-                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <Check size={16} color={SynthTokens.colors.success} style={styles.checkMark} />
                         <SynthText variant="meta">{formData.attendees.length} attendee{formData.attendees.length !== 1 ? 's' : ''} tagged</SynthText>
                     </View>
                 ) : null}
@@ -1064,7 +1064,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
             return (
                 <View style={styles.section}>
                     <SynthText variant="meta" color="brand" style={styles.center}>
-                        Get Started
+                        Get started
                     </SynthText>
                     <SynthText variant="h2" style={styles.center}>
                         How much time do you want to spend?
@@ -1456,7 +1456,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                             <ActivityIndicator color="#FFFDFA" />
                         ) : (
                             <SynthText variant="body" style={styles.primaryBtnText}>
-                                Submit Review
+                                Submit review
                             </SynthText>
                         )}
                     </Pressable>
@@ -1652,8 +1652,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     checkMark: {
-        color: '#22C55E',
-        fontWeight: '700',
+        marginTop: 1,
     },
     recommendedBadge: {
         color: SynthTokens.colors.brandPink500,

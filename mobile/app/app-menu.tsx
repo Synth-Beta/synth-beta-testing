@@ -130,7 +130,7 @@ export default function AppMenuScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <MenuRow
           icon={<Users size={22} color={SynthTokens.colors.neutral900} />}
-          label="Friend Requests"
+          label="Friend requests"
           badge={friendReqUnread}
           onPress={() => {
             close();
@@ -156,7 +156,7 @@ export default function AppMenuScreen() {
         />
         <MenuRow
           icon={<Music2 size={22} color={SynthTokens.colors.neutral900} />}
-          label="Streaming Stats"
+          label="Streaming stats"
           onPress={() => {
             close();
             router.push('/stats');
@@ -193,7 +193,7 @@ export default function AppMenuScreen() {
               <Check size={14} color="#FFFDFA" strokeWidth={3} />
             </View>
             <Sparkles size={16} color={SynthTokens.colors.brandPink500} />
-            <Text style={styles.verifiedTitle}>Verified Account</Text>
+            <Text style={styles.verifiedTitle}>Verified account</Text>
           </View>
         ) : null}
 

@@ -329,7 +329,7 @@ export default function ProfileScreen() {
         <View style={styles.actionRow}>
           <Pressable style={styles.editProfile} onPress={() => router.push('/profile-edit')}>
             <Pencil size={18} color="#FFFDFA" />
-            <Text style={styles.editProfileText}>Edit Profile</Text>
+            <Text style={styles.editProfileText}>Edit profile</Text>
           </Pressable>
           <Pressable style={styles.gearBtn} onPress={() => router.push('/settings')}>
             <Settings size={22} color={SynthTokens.colors.neutral900} />

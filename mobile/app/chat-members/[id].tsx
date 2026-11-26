@@ -350,7 +350,7 @@ export default function ChatMembersScreen() {
                     {sending ? (
                       <ActivityIndicator size="small" color="#FFFDFA" />
                     ) : (
-                      <Text style={styles.addBtnTxt}>Add Friend</Text>
+                      <Text style={styles.addBtnTxt}>Add friend</Text>
                     )}
                   </Pressable>
                 ) : null}

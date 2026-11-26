@@ -609,7 +609,7 @@ export default function EventDetailScreen() {
                                 accessibilityLabel="Write a review"
                             >
                                 <Star size={22} color={PINK} />
-                                <Text style={styles.outlineActionText} numberOfLines={1}>Write Review</Text>
+                                <Text style={styles.outlineActionText} numberOfLines={1}>Write review</Text>
                             </Pressable>
                         ) : null}
                         <Pressable
@@ -862,7 +862,7 @@ export default function EventDetailScreen() {
                                 ) : allInterestedUsers.length === 0 ? (
                                     <View style={styles.meetEmptyWrap}>
                                         <Heart size={52} color={SynthTokens.colors.neutral400} />
-                                        <Text style={styles.comingSoonTitle}>No One Yet</Text>
+                                        <Text style={styles.comingSoonTitle}>No one yet</Text>
                                         <SynthText variant="meta" color="secondary" style={styles.comingSoonDesc}>
                                             Be the first to mark yourself as interested and share with friends!
                                         </SynthText>
@@ -907,7 +907,7 @@ export default function EventDetailScreen() {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Users size={20} color={SynthTokens.colors.neutral900} />
-                                <SynthText variant="h2" style={styles.sectionTitle}>Friends Going</SynthText>
+                                <SynthText variant="h2" style={styles.sectionTitle}>Friends going</SynthText>
                             </View>
                             <View style={styles.avatarsRow}>
                                 {friends.slice(0, 5).map(friend => (
@@ -978,7 +978,7 @@ export default function EventDetailScreen() {
                                 accessibilityLabel="Get Tickets"
                             >
                                 <Ticket size={20} color={SynthTokens.colors.neutral0} />
-                                <Text style={styles.ticketBtnText}>Get Tickets</Text>
+                                <Text style={styles.ticketBtnText}>Get tickets</Text>
                             </Pressable>
                         </View>
                     ) : null}

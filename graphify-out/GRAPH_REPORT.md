@@ -1,17 +1,17 @@
-# Graph Report - synth-beta-testing  (2026-11-24)
+# Graph Report - synth-beta-testing  (2026-11-25)
 
 ## Corpus Check
-- 1901 files · ~2,830,939 words
+- 1901 files · ~2,831,068 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 66 file(s) not represented in the graph (top: .css 27, (none) 20, .example 2)
 
 ## Summary
-- 12457 nodes · 33871 edges · 551 communities (372 shown, 179 thin omitted)
+- 12457 nodes · 33870 edges · 552 communities (373 shown, 179 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 210 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `504c1625`
+- Built from commit: `1e0daadd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -502,6 +502,7 @@
 - MenuCategory.tsx
 - Docs
 - 5. Cities API Integration
+- ArtistFollowService
 - EmailService
 - Craft
 - Xb
@@ -559,10 +560,10 @@
 ## Surprising Connections (you probably didn't know these)
 - `Task 5: Push ask at end of onboarding (iOS)` --references--> `recordPrimerShown()`  [INFERRED]
   docs/superpowers/plans/2026-10-24-onboarding-solid.md → mobile/lib/pushPrimer.ts
-- `3. Artist step with 3 pre-selected` --references--> `FollowArtistsModal()`  [INFERRED]
-  docs/superpowers/specs/2026-10-24-onboarding-solid-design.md → src/components/onboarding/FollowArtistsModal.tsx
 - `Task 4: Mobile new-signup field` --references--> `needsContactEmail()`  [INFERRED]
   docs/superpowers/plans/2026-08-07-mandatory-email-collection.md → packages/synth-shared/src/contactEmailGate.ts
+- `3. Artist step with 3 pre-selected` --references--> `FollowArtistsModal()`  [INFERRED]
+  docs/superpowers/specs/2026-10-24-onboarding-solid-design.md → src/components/onboarding/FollowArtistsModal.tsx
 - `1. Shared rules (`packages/synth-shared/src/onboardingRules.ts`)` --references--> `OnboardingFlow()`  [INFERRED]
   docs/superpowers/specs/2026-10-24-onboarding-solid-design.md → src/components/onboarding/OnboardingFlow.tsx
 - `Testing` --references--> `validateOnboardingProfile()`  [INFERRED]
@@ -577,7 +578,7 @@
 - **Mobile CI/CD build & release pipeline (GitHub Actions → EAS → app stores)** — deployment_doc, mobile_readme_doc, mobile_readme_eas_profiles [INFERRED 0.85]
 - **Cross-platform share/deep-link handling flow (web bootstrap script, web hook, Expo hook, shared URL contract)** — src_hooks_usesharedeeplink_usesharedeeplink, mobile_lib_usesharedeeplink_usesharedeeplink, packages_synth_shared_parseshareurl [INFERRED 0.85]
 
-## Communities (551 total, 179 thin omitted)
+## Communities (552 total, 179 thin omitted)
 
 ### Community 0 - "app/calendar.tsx"
 Cohesion: 0.13
@@ -596,8 +597,8 @@ Cohesion: 0.09
 Nodes (28): accent_band(), area_split(), box_blur(), chrome(), cmd_measure(), cmd_sample(), cmd_shot(), components() (+20 more)
 
 ### Community 4 - "cn"
-Cohesion: 0.04
-Nodes (74): ArtistCardProps, ArtistSearchBoxProps, MusicTagsStep(), MusicTagsStepProps, OnboardingReminderBanner(), OnboardingReminderBannerProps, Alert, AlertDescription (+66 more)
+Cohesion: 0.03
+Nodes (94): ArtistCardProps, ArtistSearchBoxProps, NotificationBell(), NotificationBellProps, MusicTagsStep(), MusicTagsStepProps, OnboardingReminderBanner(), OnboardingReminderBannerProps (+86 more)
 
 ### Community 6 - "seo/render.ts"
 Cohesion: 0.10
@@ -628,8 +629,8 @@ Cohesion: 0.10
 Nodes (13): LocationSearchParams, SimpleEventRecommendationService, SimpleRecommendationParams, SimpleRecommendationResult, SimpleRecommendedEvent, SyncState, SyncStatus, TimeRange (+5 more)
 
 ### Community 13 - "src/components/profile/ProfileView.tsx"
-Cohesion: 0.03
-Nodes (82): createFriendRequest(), ChatMemberFriendStatus, ChatMemberRow, ChatMembersPage(), ChatMembersPageProps, FriendStatusMaps, loadFriendStatuses(), Event (+74 more)
+Cohesion: 0.06
+Nodes (58): createFriendRequest(), ChatMemberFriendStatus, ChatMemberRow, ChatMembersPage(), ChatMembersPageProps, FriendStatusMaps, loadFriendStatuses(), MusicServiceType (+50 more)
 
 ### Community 14 - "src/services/chatService.ts"
 Cohesion: 0.05
@@ -665,7 +666,7 @@ Nodes (42): builderHtml, darkPreview, emptyQuality, gmailSim, lightPreview, long
 
 ### Community 23 - "Card"
 Cohesion: 0.03
-Nodes (176): acceptFriendRequest(), declineFriendRequest(), AdminModerationPanel(), VerificationManagement(), AgeVerificationCard(), ConversionFunnelChart(), ConversionFunnelChartProps, FunnelStage (+168 more)
+Nodes (164): acceptFriendRequest(), declineFriendRequest(), AdminModerationPanel(), VerificationManagement(), AgeVerificationCard(), ConversionFunnelChart(), ConversionFunnelChartProps, FunnelStage (+156 more)
 
 ### Community 24 - "AdminAnalyticsDashboard.tsx"
 Cohesion: 0.16
@@ -749,7 +750,7 @@ Nodes (22): canUseStorage(), getNewsletterBySlugRuntime(), getNewsletters(), get
 
 ### Community 45 - "src/integrations/supabase/client.ts"
 Cohesion: 0.02
-Nodes (99): deleteFriendRequestNotificationsByRequestId(), isFriendsHubNotificationType(), BottomNavAdapter(), SynthButton(), MyEventsManagementPanel(), WebAppShell(), WebAppShellProps, WebDesktopRail() (+91 more)
+Nodes (114): deleteFriendRequestNotificationsByRequestId(), isFriendsHubNotificationType(), BottomNavAdapter(), SynthButton(), MyEventsManagementPanel(), WebAppShell(), WebAppShellProps, WebDesktopRail() (+106 more)
 
 ### Community 46 - "forgivingNameSearch.ts"
 Cohesion: 0.08
@@ -784,8 +785,8 @@ Cohesion: 0.10
 Nodes (23): db, empty, emptyUsers, localShow, now, profile, queried, reader (+15 more)
 
 ### Community 55 - "src/components/UnifiedChatView.tsx"
-Cohesion: 0.04
-Nodes (52): isAiSceneGuideMessage(), AiSceneGuideRoomNotice(), MessageReactions(), ReactionPicker(), ReactionPickerProps, ReplyQuote(), ReviewMessageCard(), formatCount() (+44 more)
+Cohesion: 0.03
+Nodes (65): isAiSceneGuideMessage(), AiSceneGuideRoomNotice(), MessageReactions(), ReactionPicker(), ReactionPickerProps, ReplyQuote(), ReviewMessageCard(), formatCount() (+57 more)
 
 ### Community 56 - "adminAlerts.ts"
 Cohesion: 0.12
@@ -1109,7 +1110,7 @@ Nodes (22): COMPETITORS, detectMentions(), isSynthUrl(), MentionResult, cleanEmb
 
 ### Community 138 - "src/components/events/EventDetailsModal.tsx"
 Cohesion: 0.03
-Nodes (114): JamBaseAttribution(), JamBaseAttributionProps, JamBaseAttributionFooter(), JamBaseAttributionFooterProps, VerifiedChatBadge(), VerifiedChatBadgeProps, GenreShowsModalProps, ArtistDetailModal() (+106 more)
+Nodes (95): JamBaseAttribution(), JamBaseAttributionProps, JamBaseAttributionFooter(), JamBaseAttributionFooterProps, GenreShowsModalProps, ArtistDetailModal(), ArtistDetailModalProps, fetchUpcomingEventPages() (+87 more)
 
 ### Community 139 - "compilerOptions"
 Cohesion: 0.10
@@ -1605,7 +1606,7 @@ Nodes (10): getSupabaseConfig(), keyConfig, keyUsage, validateApiKeys(), { creat
 
 ### Community 280 - "src/components/UnifiedFeed.tsx"
 Cohesion: 0.04
-Nodes (50): ArtistFollowButton(), EmptyState(), EmptyStateProps, eventIcon, EventMap(), EventMapProps, MapBoundsTracker(), MapUpdater() (+42 more)
+Nodes (53): EmptyState(), EmptyStateProps, Event, EventCard(), EventCardProps, eventIcon, EventMap(), EventMapProps (+45 more)
 
 ### Community 281 - "text_contrast"
 Cohesion: 0.22
@@ -1917,7 +1918,7 @@ Nodes (5): formatDateForAPI(), handler(), parseSetlistSearchQuery(), sanitizeQue
 
 ### Community 501 - "HomeFeed.tsx"
 Cohesion: 0.02
-Nodes (194): 5.1 Current state, resolveLocation(), pick5BandUrl(), ReviewMatch, ArtistFollowButtonProps, EventMessageCard(), EventMessageCardProps, BecauseYouLikeSection() (+186 more)
+Nodes (192): 5.1 Current state, resolveLocation(), pick5BandUrl(), ReviewMatch, ArtistFollowButtonProps, EventMessageCard(), EventMessageCardProps, VerifiedChatBadge() (+184 more)
 
 ### Community 502 - "scripts"
 Cohesion: 0.33
@@ -1930,6 +1931,10 @@ Nodes (115): ArtistDetailScreen(), EventRow, fetchUpcomingEventPages(), fillMiss
 ### Community 506 - "5. Cities API Integration"
 Cohesion: 0.33
 Nodes (6): 5. Cities API Integration, API Endpoints Used, Configuration, Overview, Services, Use Cases
+
+### Community 507 - "ArtistFollowService"
+Cohesion: 0.22
+Nodes (6): ArtistFollowButton(), ArtistWithEvents, ArtistFollowService, ArtistFollow, ArtistFollowStats, ArtistFollowWithDetails
 
 ### Community 511 - "Craft"
 Cohesion: 0.10
@@ -2075,17 +2080,17 @@ Nodes (5): Direction, Final audit, Run it, Subtract first, Unslop
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SynthMap()` connect `(tabs)/index.tsx` to `SynthText`, `editorial-writing/index.ts`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Why does `ProfileReviewCard()` connect `Button` to `cn`, `admin/src/integrations/supabase/client.ts`, `admin/src/services/reviewService.ts`, `📸 Photo Integration Guide`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **What connects `apn`, `dotenv`, `jsonwebtoken` to the rest of the system?**
   _279 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `app/calendar.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.13118279569892474 - nodes in this community are weakly interconnected._
-- **Why does `Platform` connect `editorial-writing/index.ts` to `(tabs)/index.tsx`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Why does `2. Review Photo Display` connect `📸 Photo Integration Guide` to `Button`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **Should `EventReviewFlow.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.04131326949384405 - nodes in this community are weakly interconnected._
-- **Why does `ProfileReviewCard()` connect `Button` to `cn`, `admin/src/integrations/supabase/client.ts`, `admin/src/services/reviewService.ts`, `📸 Photo Integration Guide`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
 - **Should `cn` be split into smaller, more focused modules?**
   _Cohesion score 0.018606965174129353 - nodes in this community are weakly interconnected._
+- **Should `color.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.09413067552602436 - nodes in this community are weakly interconnected._

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { showToast } from '../../src/components/Toast';
 import {
     View,
     StyleSheet,
@@ -464,7 +465,7 @@ function CommentsSheet({
             if (entityIdError || !entityId) {
                 console.warn('[[id]] entityId query failed', entityIdError);
                 setNewComment(draft);
-                Alert.alert('Could not post comment', 'Please try again.');
+                showToast('Please try again.', { title: 'Could not post comment' });
                 return;
             }
 
@@ -490,7 +491,7 @@ function CommentsSheet({
             if (insertError) {
                 console.warn('[[id]] comment insert failed', insertError);
                 setNewComment(draft);
-                Alert.alert('Could not post comment', 'Please try again.');
+                showToast('Please try again.', { title: 'Could not post comment' });
                 return;
             }
             setNewComment('');
@@ -619,7 +620,7 @@ function CommentsSheet({
                         </View>
                     ) : comments.length === 0 ? (
                         <View style={cmtStyles.centered}>
-                            <SynthText variant="meta" color="secondary">No comments yet. Be the first!</SynthText>
+                            <SynthText variant="meta" color="secondary">No comments yet</SynthText>
                         </View>
                     ) : (
                         <FlatList
@@ -655,7 +656,7 @@ function CommentsSheet({
                                             }
                                             style={[cmtStyles.seeMoreWrap, { marginLeft: item.depth * 22 }]}
                                         >
-                                            <Text style={cmtStyles.seeMore}>See More</Text>
+                                            <Text style={cmtStyles.seeMore}>See more</Text>
                                         </Pressable>
                                     );
                                 }
@@ -1161,10 +1162,10 @@ export default function ReviewDetailScreen() {
                 undefined,
                 [
                     {
-                        text: 'Delete Review',
+                        text: 'Delete review',
                         style: 'destructive',
                         onPress: () => {
-                            Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
+                            Alert.alert('Delete review', 'Are you sure you want to delete this review?', [
                                 { text: 'Cancel', style: 'cancel' },
                                 {
                                     text: 'Delete',
@@ -1193,14 +1194,14 @@ export default function ReviewDetailScreen() {
                 undefined,
                 [
                     {
-                        text: 'Report Review',
+                        text: 'Report review',
                         onPress: () => Alert.alert('Reported', 'Thank you for your report. We will review it shortly.'),
                     },
                     {
-                        text: 'Block User',
+                        text: 'Block user',
                         style: 'destructive',
                         onPress: () => {
-                            Alert.alert('Block User', 'Are you sure you want to block this user?', [
+                            Alert.alert('Block user', 'Are you sure you want to block this user?', [
                                 { text: 'Cancel', style: 'cancel' },
                                 {
                                     text: 'Block',
@@ -1436,11 +1437,11 @@ export default function ReviewDetailScreen() {
                         {hasCategoryBreakdown ? (
                             <View style={{ gap: 12 }}>
                                 <SynthText variant="h2" style={styles.sectionHeading}>
-                                    View Rating Details
+                                    View rating details
                                 </SynthText>
                                 <CategoryRatingRow
                                     icon={<Mic2 size={16} color={MUTED_ICON} />}
-                                    label="Artist Performance"
+                                    label="Artist performance"
                                     rating={review.artist_performance_rating}
                                     feedback={review.artist_performance_feedback}
                                 />
@@ -1452,7 +1453,7 @@ export default function ReviewDetailScreen() {
                                 />
                                 <CategoryRatingRow
                                     icon={<MapPin size={16} color={MUTED_ICON} />}
-                                    label="Venue Experience"
+                                    label="Venue experience"
                                     rating={review.venue_rating}
                                     feedback={review.venue_feedback}
                                 />

@@ -321,7 +321,7 @@ export function ShareToChatModal({
                         <View style={styles.centered}>
                             <MessageCircle size={36} color={SynthTokens.colors.neutral200} />
                             <SynthText variant="body" color="secondary" style={{ marginTop: 12, textAlign: 'center' }}>
-                                No chats or friends yet.{'\n'}Share the link instead 👇
+                                No chats or friends yet.{'\n'}Share the link below instead.
                             </SynthText>
                         </View>
                     ) : (

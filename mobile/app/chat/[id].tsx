@@ -5,8 +5,8 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText, MoreVertical, Heart } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import * as Clipboard from 'expo-clipboard';
+import { showToast } from '../../src/components/Toast';
 import { SafeImage } from '../../src/components/SafeImage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
 import {
     AiGuideMessageBubble,
@@ -560,7 +560,7 @@ export default function ChatThreadScreen() {
                 await loadMessages();
                 setTimeout(() => scrollToLatest(true), 200);
             } else {
-                Alert.alert('Message not sent', 'Check your connection and try again.');
+                showToast('Check your connection and try again.', { title: 'Message not sent' });
             }
         } finally {
             sendingRef.current = false;
@@ -586,7 +586,7 @@ export default function ChatThreadScreen() {
             if (!userId || !asset.uri) return;
 
             if (asset.fileSize != null && asset.fileSize > CHAT_IMAGE_MAX_BYTES) {
-                Alert.alert('File too large', 'Images must be under 8MB.');
+                showToast('Images must be under 8MB.', { title: 'File too large' });
                 return;
             }
 
@@ -597,7 +597,7 @@ export default function ChatThreadScreen() {
                     fileName: asset.fileName,
                 });
                 if (!imageMeta) {
-                    Alert.alert('Upload failed', 'Could not upload image. Please try again.');
+                    showToast('Could not upload image. Please try again.', { title: 'Upload failed' });
                     return;
                 }
 
@@ -617,7 +617,7 @@ export default function ChatThreadScreen() {
                     setTimeout(() => scrollToLatest(true), 200);
                 } else {
                     console.error('[chat] insert image message:', error);
-                    Alert.alert('Send failed', 'Could not send image. Please try again.');
+                    showToast('Could not send image. Please try again.', { title: 'Send failed' });
                 }
             } finally {
                 setUploadingImage(false);
@@ -681,7 +681,7 @@ export default function ChatThreadScreen() {
 
     const handleBlockUser = () => {
         if (!otherParticipant || !userId) return;
-        Alert.alert('Block User', `Block ${otherParticipant.name}?`, [
+        Alert.alert('Block user', `Block ${otherParticipant.name}?`, [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Block',
@@ -739,27 +739,27 @@ export default function ChatThreadScreen() {
         if (isGroupChat) {
             actions.push({
                 key: 'view-users',
-                label: 'View Users',
+                label: 'View users',
                 onPress: handleViewUsers,
             });
             if (entityType === 'event' && entityId) {
                 actions.push({
                     key: 'view-event',
-                    label: 'View Event',
+                    label: 'View event',
                     onPress: () => void openEvent(entityId),
                 });
             }
         } else if (otherParticipant) {
             actions.push({
                 key: 'view-profile',
-                label: 'View Profile',
+                label: 'View profile',
                 onPress: () => {
                     router.push(`/user/${otherParticipant.user_id}` as any);
                 },
             });
             actions.push({
                 key: 'block-user',
-                label: 'Block User',
+                label: 'Block user',
                 destructive: true,
                 onPress: handleBlockUser,
             });
@@ -777,7 +777,7 @@ export default function ChatThreadScreen() {
         });
         actions.push({
             key: 'remove-chat',
-            label: 'Remove Chat',
+            label: 'Remove chat',
             destructive: true,
             onPress: handleRemoveChat,
         });
@@ -1026,23 +1026,15 @@ export default function ChatThreadScreen() {
                         delayLongPress={300}
                         style={styles.shareCard}
                     >
-                        {/* Gradient header band */}
-                        <LinearGradient
-                            colors={['#EC4899', '#9333EA']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.shareCardHeader}
-                        >
-                            <View style={styles.shareCardHeaderIcon}>
-                                <FileText size={16} color="#FFFDFA" />
-                            </View>
-                            <Text style={styles.shareCardHeaderLabel}>Concert Review</Text>
+                        <View style={styles.shareCardHeader}>
+                            <FileText size={14} color={SynthTokens.colors.brandPink500} />
+                            <Text style={styles.shareCardHeaderLabel}>Review</Text>
                             {past && (
                                 <View style={styles.shareCardBadge}>
-                                    <Text style={styles.shareCardBadgeText}>Past Event</Text>
+                                    <Text style={styles.shareCardBadgeText}>Past</Text>
                                 </View>
                             )}
-                        </LinearGradient>
+                        </View>
 
                         {/* Card body */}
                         <View style={styles.shareCardBody}>
@@ -1136,21 +1128,13 @@ export default function ChatThreadScreen() {
                         delayLongPress={300}
                         style={styles.shareCard}
                     >
-                        {/* Gradient header band */}
-                        <LinearGradient
-                            colors={['#EC4899', '#9333EA']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.shareCardHeader}
-                        >
-                            <View style={styles.shareCardHeaderIcon}>
-                                <Music size={16} color="#FFFDFA" />
-                            </View>
-                            <Text style={styles.shareCardHeaderLabel}>Shared Event</Text>
+                        <View style={styles.shareCardHeader}>
+                            <Music size={14} color={SynthTokens.colors.brandPink500} />
+                            <Text style={styles.shareCardHeaderLabel}>Event</Text>
                             <View style={styles.shareCardBadge}>
-                                <Text style={styles.shareCardBadgeText}>{past ? 'Past Event' : 'Upcoming'}</Text>
+                                <Text style={styles.shareCardBadgeText}>{past ? 'Past' : 'Upcoming'}</Text>
                             </View>
-                        </LinearGradient>
+                        </View>
 
                         {/* Card body */}
                         <View style={styles.shareCardBody}>
@@ -1614,50 +1598,28 @@ const styles = StyleSheet.create({
         maxWidth: 300,
         minWidth: 260,
         borderRadius: 16,
-        borderWidth: 2,
-        borderColor: '#FBCFE8',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: SynthTokens.colors.neutral200,
         overflow: 'hidden',
         backgroundColor: SynthTokens.colors.neutral0,
-        shadowColor: '#0E0E0E',
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
     },
     shareCardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
-        paddingVertical: 10,
-        gap: 8,
-    },
-    shareCardHeaderIcon: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: 'rgba(255,255,255,0.20)',
-        alignItems: 'center',
-        justifyContent: 'center',
+        paddingTop: 12,
+        gap: 6,
     },
     shareCardHeaderLabel: {
         flex: 1,
-        color: '#FFFDFA',
+        color: SynthTokens.colors.neutral600,
         fontSize: 12,
         fontWeight: '600',
     },
-    shareCardBadge: {
-        backgroundColor: 'rgba(255,255,255,0.22)',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.50)',
-    },
+    shareCardBadge: {},
     shareCardBadgeText: {
-        color: '#FFFDFA',
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 0.3,
+        color: SynthTokens.colors.neutral600,
+        fontSize: 12,
     },
     shareCardBody: {
         padding: 12,
@@ -1669,13 +1631,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 8,
         marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#FBCFE8',
     },
     shareCustomNoteText: {
         fontSize: 13,
-        color: '#374151',
-        fontStyle: 'italic',
+        color: SynthTokens.colors.neutral900,
     },
     shareCardTitle: {
         fontSize: 15,
@@ -1696,8 +1655,6 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         marginTop: 6,
         marginBottom: 4,
-        borderWidth: 1,
-        borderColor: '#FBCFE8',
     },
     shareSnippetText: {
         fontSize: 13,

@@ -205,7 +205,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                                 ) : null}
                                 {isUserPhoto ? (
                                     <View style={styles.userPhotoBadge} pointerEvents="none">
-                                        <Text style={styles.userPhotoBadgeText}>User Photo</Text>
+                                        <Text style={styles.userPhotoBadgeText}>User photo</Text>
                                     </View>
                                 ) : null}
                             </>

@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "mobile/src/hooks/useUnreadMessageCount.ts": {
-    "mtime": 1794267460.9785178,
-    "seen": 1794352142.4169157,
-    "ast_hash": "5fdbbce3c4e4080d2bcdfba6848157a6",
+    "mtime": 1795633560.025216,
+    "seen": 1795635243.7293148,
+    "ast_hash": "b5b8f5b8e78b39281a80432425fde1ba",
     "semantic_hash": ""
   },
   "mobile/src/integrations/supabase/client.ts": {
@@ -1578,10 +1578,10 @@
     "semantic_hash": "96ed0276fcf401f4c0872db9e9c70a7a"
   },
   "src/components/PageActions.tsx": {
-    "mtime": 1791563914.504239,
-    "seen": 1791513273.7577846,
-    "ast_hash": "2c2d224077a55924ede90cecd7c1721b",
-    "semantic_hash": "2c2d224077a55924ede90cecd7c1721b"
+    "mtime": 1795633562.9186177,
+    "seen": 1795635243.7293148,
+    "ast_hash": "5b993502de3234d1498a53871d70d2c2",
+    "semantic_hash": ""
   },
   "src/components/ParentalControlsSettings.tsx": {
     "mtime": 1791563914.504239,
@@ -2742,9 +2742,9 @@
     "semantic_hash": "fa276c34fc55ed3a7fc0f6cc474986fe"
   },
   "src/hooks/useMainNavItems.ts": {
-    "mtime": 1793219384.1890633,
-    "seen": 1793221566.555263,
-    "ast_hash": "5911d0e11e2033046850fa5ac78c7968",
+    "mtime": 1795633561.552066,
+    "seen": 1795635243.7293148,
+    "ast_hash": "a5380744bcbeacaa1c18df8197d9860d",
     "semantic_hash": ""
   },
   "src/hooks/useMenuNotificationBadgeCount.ts": {

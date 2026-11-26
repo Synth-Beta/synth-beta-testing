@@ -140,7 +140,7 @@ function ServiceCard({ name, color, isConnected, connecting, onConnect, subtitle
     onConnect: () => void;
     subtitle?: string;
 }) {
-    const sub = isConnected ? 'Connected ✓' : (subtitle ?? 'Tap to connect');
+    const sub = isConnected ? 'Connected' : (subtitle ?? 'Tap to connect');
     return (
         <Pressable
             onPress={isConnected || connecting ? undefined : onConnect}

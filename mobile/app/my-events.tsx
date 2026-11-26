@@ -18,7 +18,7 @@ export default function MyEventsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.back} accessibilityLabel="Back">
           <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
         </TouchableOpacity>
-        <SynthText variant="h2">My Events</SynthText>
+        <SynthText variant="h2">My events</SynthText>
         <View style={styles.back} />
       </View>
 
