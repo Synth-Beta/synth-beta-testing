@@ -166,7 +166,7 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
-                      style={{ color: 'var(--neutral-50)' }}
+                      style={{ color: 'var(--on-accent)' }}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>

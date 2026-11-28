@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: PINK + '22',
+        backgroundColor: SynthTokens.alpha('brandPink500', '22'),
     },
     listVenue: { fontWeight: '700' },
     listSub: { fontSize: 13 },

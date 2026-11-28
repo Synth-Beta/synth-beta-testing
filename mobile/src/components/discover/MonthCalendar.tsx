@@ -189,7 +189,7 @@ const calStyles = StyleSheet.create({
     color: SynthTokens.colors.neutral200,
   },
   daySaved: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     backgroundColor: PINK,
     borderRadius: 8,
     paddingHorizontal: 6,

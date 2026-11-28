@@ -75,7 +75,7 @@ function Calendar({
       modifiersStyles={{
         selected: {
           backgroundColor: "var(--brand-pink-500)",
-          color: "var(--neutral-50)",
+          color: "var(--on-accent)",
           borderRadius: "10px",
         },
         disabled: {

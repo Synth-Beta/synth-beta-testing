@@ -698,9 +698,9 @@ function CommentsSheet({
                                     style={[cmtStyles.sendBtn, (!newComment.trim() || posting) && cmtStyles.sendBtnDisabled]}
                                 >
                                     {posting ? (
-                                        <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                                        <ActivityIndicator size="small" color={SynthTokens.colors.onAccent} />
                                     ) : (
-                                        <Send size={18} color={SynthTokens.colors.neutral0} />
+                                        <Send size={18} color={SynthTokens.colors.onAccent} />
                                     )}
                                 </Pressable>
                             </View>

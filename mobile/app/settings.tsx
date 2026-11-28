@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   Platform,
+  type ColorValue,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -521,7 +522,7 @@ export default function SettingsScreen() {
           }}
           disabled={signingOut}
         >
-          <LogOut size={20} color={SynthTokens.colors.neutral0} />
+          <LogOut size={20} color={SynthTokens.colors.onAccent} />
           <Text style={styles.signOutTxt}>{signingOut ? 'Signing out…' : 'Sign out'}</Text>
         </Pressable>
       </ScrollView>
@@ -549,7 +550,7 @@ function ToggleRow({
   onValueChange,
   disabled,
 }: {
-  icon: React.ComponentType<{ size?: number; color?: string }>;
+  icon: React.ComponentType<{ size?: number; color?: ColorValue }>;
   label: string;
   description: string;
   value: boolean;
@@ -572,7 +573,7 @@ function ToggleRow({
         onValueChange={onValueChange}
         disabled={disabled}
         trackColor={{ false: SynthTokens.colors.neutral200, true: SynthTokens.colors.brandPink050 }}
-        thumbColor={value ? PINK : SynthTokens.colors.neutral0}
+        thumbColor={value ? PINK : SynthTokens.colors.onAccent}
         ios_backgroundColor={SynthTokens.colors.neutral200}
       />
     </View>
@@ -587,7 +588,7 @@ function AccountNavRow({
   danger,
   rightBadge,
 }: {
-  icon: React.ComponentType<{ size?: number; color?: string }>;
+  icon: React.ComponentType<{ size?: number; color?: ColorValue }>;
   label: string;
   description: string;
   onPress: () => void;
@@ -661,7 +662,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: { fontSize: 22, fontWeight: '700', color: SynthTokens.colors.neutral0 },
+  avatarInitial: { fontSize: 22, fontWeight: '700', color: SynthTokens.colors.onAccent },
   profileText: { flex: 1, minWidth: 0 },
   profileName: { fontSize: 17, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
@@ -725,9 +726,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: SynthTokens.alpha('success', '1F'),
   },
-  badgeTxt: { fontSize: 11, fontWeight: '700', color: '#047857' },
+  badgeTxt: { fontSize: 11, fontWeight: '700', color: SynthTokens.colors.success },
   signOutBtn: {
     marginTop: 8,
     flexDirection: 'row',
@@ -739,7 +740,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   signOutDisabled: { opacity: 0.6 },
-  signOutTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral0 },
+  signOutTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.onAccent },
   privacyLinkText: {
     fontSize: 12,
     color: SynthTokens.colors.neutral400,

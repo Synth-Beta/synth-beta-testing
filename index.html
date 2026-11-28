@@ -10,6 +10,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#CC2486" />
+    <!-- Dark mode before first paint (same rule as src/lib/theme.ts): saved choice, else the OS. -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('synth.colorScheme');
+          var dark = v === 'dark' || (v !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#121110');
+          }
+        } catch (e) {}
+      })();
+    </script>
 
     <!-- Primary SEO -->
     <title>Synth - Find Friends for Local Events</title>

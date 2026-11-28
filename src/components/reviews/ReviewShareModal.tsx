@@ -507,7 +507,7 @@ const modalRef = useRef<HTMLDivElement>(null);
                               border: '2px solid white',
                             }}
                           >
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFDFA' }} />
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--on-accent)' }} />
                           </div>
                         )}
                       </div>

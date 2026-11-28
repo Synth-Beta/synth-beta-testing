@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, type ColorValue } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
@@ -23,7 +23,7 @@ function rarityLabel(r: string): string {
     return 'Other';
 }
 
-function rarityAccent(r?: string | null): string {
+function rarityAccent(r?: string | null): ColorValue {
     if (r === 'legendary') return '#CA8A04';
     if (r === 'uncommon') return '#9333EA';
     if (r === 'common') return SynthTokens.colors.neutral600;

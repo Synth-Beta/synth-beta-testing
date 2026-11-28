@@ -149,7 +149,7 @@ export const GlobalDetailModals = ({
                   manualArtistDetail.following
                     ? {
                         backgroundColor: 'var(--brand-pink-500)',
-                        color: 'var(--neutral-50)',
+                        color: 'var(--on-accent)',
                         border: '2px solid var(--brand-pink-500)',
                       }
                     : {

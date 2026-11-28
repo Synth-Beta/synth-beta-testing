@@ -1,5 +1,6 @@
 /* Import Design Tokens */
 @import './styles/tokens.css';
+@import './styles/dark.css';
 
 /* stylelint-disable */
 @tailwind base;
@@ -608,6 +609,34 @@ body,
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
+  /* Dark theme for shadcn/ui primitives (hsl channels). Pairs with :root.dark in tokens.css. */
+  .dark {
+    --background: 20 6% 7%;
+    --foreground: 33 30% 94%;
+    --card: 15 5% 10%;
+    --card-foreground: 33 30% 94%;
+    --popover: 15 5% 10%;
+    --popover-foreground: 33 30% 94%;
+    --primary: 326 65% 54%;
+    --primary-foreground: 40 100% 99%;
+    --secondary: 30 6% 14%;
+    --secondary-foreground: 33 30% 94%;
+    --muted: 30 6% 14%;
+    --muted-foreground: 30 6% 65%;
+    --accent: 30 6% 14%;
+    --accent-foreground: 33 30% 94%;
+    --destructive: 4 82% 67%;
+    --destructive-foreground: 40 100% 99%;
+    --border: 20 5% 20%;
+    --input: 20 5% 20%;
+    --ring: 326 65% 54%;
+    --sidebar-background: 20 6% 7%;
+    --sidebar-foreground: 33 30% 94%;
+    --sidebar-accent: 30 6% 14%;
+    --sidebar-accent-foreground: 33 30% 94%;
+    --sidebar-border: 20 5% 20%;
+  }
+
   /* Light mode variant - if needed */
   .light {
     --background: 40 100% 99%;
@@ -846,7 +875,7 @@ body,
   .btn-synth-primary {
     /* Primary button: Brand Pink background, Neutral-50 text/icons */
     background-color: var(--brand-pink-500);
-    color: var(--neutral-50) !important;
+    color: var(--on-accent) !important;
     border: none;
     border-radius: var(--radius-corner, 10px);
     box-shadow: 0 4px 4px 0 var(--shadow-color);
@@ -908,11 +937,11 @@ body,
   }
 
   .event-interested-button.btn-synth-secondary {
-    color: var(--neutral-0) !important;
+    color: var(--on-accent) !important;
   }
 
   .event-interested-button.btn-synth-secondary svg {
-    color: var(--neutral-0) !important;
+    color: var(--on-accent) !important;
   }
 
   .btn-synth-secondary:disabled {
@@ -1709,4 +1738,12 @@ body,
  */
 .synth-scroll-locked {
   overflow: hidden !important;
+}
+
+/* Theme switch: suspend transitions for one beat so the whole page changes together (src/lib/theme.ts). */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: none !important;
 }

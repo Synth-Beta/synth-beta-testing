@@ -380,7 +380,7 @@ export default function ChatMembersScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  root: { flex: 1, backgroundColor: SynthTokens.colors.neutral0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,13 +389,13 @@ const styles = StyleSheet.create({
     paddingVertical: SynthTokens.spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: SynthTokens.colors.neutral200,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: SynthTokens.colors.neutral0,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  listFill: { flex: 1, backgroundColor: '#FFFFFF' },
-  list: { paddingBottom: 40, backgroundColor: '#FFFFFF' },
+  listFill: { flex: 1, backgroundColor: SynthTokens.colors.neutral0 },
+  list: { paddingBottom: 40, backgroundColor: SynthTokens.colors.neutral0 },
   empty: { paddingTop: 24, textAlign: 'center', paddingHorizontal: 20 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: SynthTokens.colors.neutral0 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SynthTokens.spacing.screenMarginX,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: SynthTokens.colors.neutral200,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: SynthTokens.colors.neutral0,
   },
   avatar: {
     width: 48,

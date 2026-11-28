@@ -104,7 +104,7 @@
   justify-content: center;
   border-radius: 999px;
   background: var(--brand-pink-500);
-  color: var(--neutral-0);
+  color: var(--on-accent);
   font-size: 12px;
   letter-spacing: 0;
 }
@@ -466,7 +466,7 @@
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.01em;
-  color: var(--neutral-0);
+  color: var(--on-accent);
   background: rgba(14, 14, 14, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(12px) saturate(140%);
@@ -700,7 +700,7 @@
 
 .thread-btn--interest { color: var(--brand-pink-500); background: var(--brand-pink-050); }
 .thread-btn--interest:hover { background: color-mix(in srgb, var(--brand-pink-500) 14%, var(--neutral-0)); }
-.thread-btn--interest.is-active { color: var(--neutral-0); background: var(--brand-pink-500); }
+.thread-btn--interest.is-active { color: var(--on-accent); background: var(--brand-pink-500); }
 .thread-btn--interest.is-active:hover { background: var(--brand-pink-600); }
 
 .thread-btn--ghost { background: transparent; border-color: var(--neutral-200); }
@@ -734,7 +734,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  color: var(--neutral-0);
+  color: var(--on-accent);
   background:
     radial-gradient(120% 140% at 100% 0%, rgba(166, 71, 255, 0.45) 0%, transparent 60%),
     linear-gradient(160deg, var(--pick5-surface, #1a0b2e) 0%, var(--pick5-bg, #0a0514) 100%);

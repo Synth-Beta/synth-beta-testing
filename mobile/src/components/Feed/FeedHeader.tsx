@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
         borderColor: SynthTokens.colors.neutral50,
     },
     badgeText: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.onAccent,
         fontSize: 11,
         fontWeight: '700',
         lineHeight: 12,

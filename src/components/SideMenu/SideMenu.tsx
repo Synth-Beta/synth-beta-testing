@@ -10,6 +10,7 @@ import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@/types/database';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
+import { DarkModeToggle } from './DarkModeToggle';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { notificationService } from '@/services/notificationService';
 import {
@@ -381,6 +382,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               <div className="side-menu__verification-divider" aria-hidden="true" />
             </>
           )}
+
+          <DarkModeToggle />
 
           {/* Logout */}
           <div className="side-menu__logout-section">

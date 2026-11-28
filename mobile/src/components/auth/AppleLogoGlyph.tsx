@@ -1,8 +1,9 @@
 import React from 'react';
+import type { ColorValue } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 /** Apple logo path — matches web `Auth.tsx` SVG (Sign in with Apple UI). */
-export const AppleLogoGlyph: React.FC<{ size?: number; color?: string }> = ({
+export const AppleLogoGlyph: React.FC<{ size?: number; color?: ColorValue }> = ({
   size = 20,
   color = '#FFFFFF',
 }) => (

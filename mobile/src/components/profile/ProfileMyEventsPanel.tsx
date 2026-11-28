@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   starRow: { flexDirection: 'row', gap: 1, alignItems: 'center' },
   starSlot: { width: 12, height: 12, position: 'relative' },
   starGlyph: { fontSize: 10, color: '#facc15', lineHeight: 12 },
-  starEmpty: { color: '#d1d5db' },
+  starEmpty: { color: SynthTokens.colors.neutral400 },
   starHalfMask: {
     position: 'absolute',
     left: 0,

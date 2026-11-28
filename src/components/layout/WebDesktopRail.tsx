@@ -58,16 +58,16 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
                 className="mx-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 font-semibold shadow-md transition-transform duration-150 active:scale-[0.97]"
                 style={{
                   backgroundColor: 'var(--brand-pink-500)',
-                  color: 'var(--neutral-50)',
+                  color: 'var(--on-accent)',
                   fontFamily: 'var(--font-family)',
                 }}
                 aria-label={item.label}
                 data-tour={item.tourId}
               >
-                <Icon name={item.icon as any} size={22} color="var(--neutral-50)" alt="" ariaHidden />
+                <Icon name={item.icon as any} size={22} color="var(--on-accent)" alt="" ariaHidden />
                 <span
                   className="text-[15px]"
-                  style={{ color: 'var(--neutral-50)', fontFamily: 'var(--font-family)' }}
+                  style={{ color: 'var(--on-accent)', fontFamily: 'var(--font-family)' }}
                 >
                   {item.label}
                 </span>

@@ -1537,7 +1537,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: SynthTokens.colors.neutral900,
         borderWidth: 1.5,
-        borderColor: '#FFFDFA',
+        borderColor: SynthTokens.colors.neutral0,
     },
     heartBadgeCount: {
         position: 'absolute',
@@ -1658,7 +1658,7 @@ const styles = StyleSheet.create({
     },
     shareSnippetText: {
         fontSize: 13,
-        color: '#374151',
+        color: SynthTokens.colors.neutral900,
         fontStyle: 'italic',
     },
     shareImage: {
@@ -1696,7 +1696,7 @@ const styles = StyleSheet.create({
     ratingText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#374151',
+        color: SynthTokens.colors.neutral900,
         marginLeft: 4,
     },
     senderRow: {
@@ -1783,13 +1783,13 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     menuItemLabelDestructive: {
-        color: '#DC2626',
+        color: SynthTokens.colors.error,
     },
     heartMenuIconWrap: {
         width: 38,
         height: 38,
         borderRadius: 19,
-        backgroundColor: '#FFFDFA',
+        backgroundColor: SynthTokens.colors.neutral0,
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'center',

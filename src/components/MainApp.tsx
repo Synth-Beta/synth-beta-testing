@@ -1228,7 +1228,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             <button
               onClick={handleForceLogin}
               className="px-4 py-2 rounded"
-              style={{ backgroundColor: 'var(--status-error-500)', color: 'var(--neutral-50)' }}
+              style={{ backgroundColor: 'var(--status-error-500)', color: 'var(--on-accent)' }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--status-error-500)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--status-error-500)'; }}
             >

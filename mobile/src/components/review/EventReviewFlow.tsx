@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
         minHeight: 48,
         justifyContent: 'center',
         fontSize: 16,
-        backgroundColor: '#FFFDFA',
+        backgroundColor: SynthTokens.colors.neutral0,
         color: SynthTokens.colors.neutral900,
     },
     area: {
@@ -1508,7 +1508,7 @@ const styles = StyleSheet.create({
         minHeight: 120,
         textAlignVertical: 'top',
         fontSize: 16,
-        backgroundColor: '#FFFDFA',
+        backgroundColor: SynthTokens.colors.neutral0,
         color: SynthTokens.colors.neutral900,
     },
     listRow: {
@@ -1550,7 +1550,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginRight: 8,
-        backgroundColor: '#FFFDFA',
+        backgroundColor: SynthTokens.colors.neutral0,
     },
     durationCard: {
         borderWidth: 2,
@@ -1558,7 +1558,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 14,
         marginTop: 12,
-        backgroundColor: '#FFFDFA',
+        backgroundColor: SynthTokens.colors.neutral0,
     },
     durationCardOn: {
         borderColor: SynthTokens.colors.brandPink500,

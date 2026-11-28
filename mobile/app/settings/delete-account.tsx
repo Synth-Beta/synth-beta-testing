@@ -119,7 +119,7 @@ export default function DeleteAccountScreen() {
           disabled={busy || confirm !== 'DELETE'}
         >
           {busy ? (
-            <ActivityIndicator color={SynthTokens.colors.neutral0} />
+            <ActivityIndicator color={SynthTokens.colors.onAccent} />
           ) : (
             <Text style={styles.deleteBtnTxt}>Delete my account</Text>
           )}
@@ -145,22 +145,22 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   body: { padding: SynthTokens.spacing.lg, gap: 16, paddingBottom: 48 },
   warnCard: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: SynthTokens.alpha('error', '1A'),
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: SynthTokens.alpha('error', '55'),
   },
   warnTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   warnIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#fee2e2',
+    backgroundColor: SynthTokens.alpha('error', '1A'),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  warnTitle: { fontSize: 17, fontWeight: '700', color: '#991b1b' },
+  warnTitle: { fontSize: 17, fontWeight: '700', color: SynthTokens.colors.error },
   warnBody: { lineHeight: 22 },
   hint: { marginTop: 4 },
   mono: { fontFamily: undefined, fontWeight: '700', color: SynthTokens.colors.neutral900 },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   errTxt: { flex: 1, color: SynthTokens.colors.error },
   input: {
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: SynthTokens.alpha('error', '55'),
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -183,5 +183,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteBtnDisabled: { opacity: 0.5 },
-  deleteBtnTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral0 },
+  deleteBtnTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.onAccent },
 });

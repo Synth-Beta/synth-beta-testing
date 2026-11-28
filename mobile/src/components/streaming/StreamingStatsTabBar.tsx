@@ -32,7 +32,7 @@ export function StreamingStatsTabBar({ value, onChange, accentColor }: Streaming
           >
             <Icon
               size={15}
-              color={selected ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral600}
+              color={selected ? SynthTokens.colors.onAccent : SynthTokens.colors.neutral600}
             />
             <Text style={[styles.segTxt, selected && styles.segTxtOn]}>{label}</Text>
           </Pressable>
@@ -65,6 +65,6 @@ const styles = StyleSheet.create({
     color: SynthTokens.colors.neutral600,
   },
   segTxtOn: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
   },
 });

@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: SynthTokens.colors.neutral900,
     },
-    inputError: { borderColor: '#dc2626' },
-    hint: { fontSize: 12, color: '#dc2626', marginTop: 5 },
+    inputError: { borderColor: SynthTokens.colors.error },
+    hint: { fontSize: 12, color: SynthTokens.colors.error, marginTop: 5 },
     footer: { padding: SynthTokens.spacing.xl, paddingBottom: SynthTokens.spacing.xl + 20 },
 });

@@ -52,7 +52,7 @@ export default function InvitePage() {
     : null;
 
   return (
-    <main className="min-h-screen bg-[#FFFDFA] px-4 py-12 flex flex-col items-center text-center">
+    <main className="min-h-screen bg-[var(--neutral-0)] px-4 py-12 flex flex-col items-center text-center">
       <div className="w-full max-w-sm flex flex-col items-center gap-3">
         {invite === undefined ? (
           <p className="text-neutral-500">Loading invite…</p>
@@ -89,7 +89,7 @@ export default function InvitePage() {
         </a>
 
         {invite && (
-          <div className="mt-4 w-full rounded-2xl border border-dashed border-neutral-300 bg-[#FFFDFA] p-4">
+          <div className="mt-4 w-full rounded-2xl border border-dashed border-neutral-300 bg-[var(--neutral-0)] p-4">
             <p className="text-sm text-neutral-600">Enter this invite code when you sign up</p>
             <p className="mt-1 font-mono text-4xl font-bold tracking-[0.2em] text-neutral-900">{normalized}</p>
             <button onClick={copy} className="mt-2 min-h-[44px] px-4 text-sm font-semibold text-neutral-700 underline">

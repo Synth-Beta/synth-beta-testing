@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     groupNameInput: {
         backgroundColor: SynthTokens.colors.neutral50,
         borderWidth: 1.5,
-        borderColor: PINK + '60',
+        borderColor: SynthTokens.alpha('brandPink500', '60'),
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 10,
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     friendRowSelected: {
-        backgroundColor: PINK + '08',
+        backgroundColor: SynthTokens.alpha('brandPink500', '08'),
         marginHorizontal: -SynthTokens.spacing.md,
         paddingHorizontal: SynthTokens.spacing.md,
     },
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     avatarPlaceholder: {
-        backgroundColor: PINK + '20',
+        backgroundColor: SynthTokens.alpha('brandPink500', '20'),
         alignItems: 'center',
         justifyContent: 'center',
     },

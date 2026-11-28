@@ -228,7 +228,7 @@ export const ChatMembersPage: React.FC<ChatMembersPageProps> = ({
         flex: 1,
         minHeight: 0,
         height: '100%',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'var(--neutral-0)',
       }}
     >
       <div
@@ -241,7 +241,7 @@ export const ChatMembersPage: React.FC<ChatMembersPageProps> = ({
           paddingTop: 'calc(var(--onboarding-banner-height, 0px) + env(safe-area-inset-top, 0px) + 12px)',
           flexShrink: 0,
           borderBottom: '1px solid var(--neutral-200)',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--neutral-0)',
         }}
       >
         <button
@@ -277,7 +277,7 @@ export const ChatMembersPage: React.FC<ChatMembersPageProps> = ({
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--neutral-0)',
           padding: '8px 0 calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))',
         }}
       >
@@ -339,7 +339,7 @@ export const ChatMembersPage: React.FC<ChatMembersPageProps> = ({
                   <AvatarImage src={member.avatar_url || undefined} alt="" />
                   <AvatarFallback
                     className="font-medium"
-                    style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}
+                    style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--on-accent)' }}
                   >
                     {member.name
                       .split(' ')
@@ -402,7 +402,7 @@ export const ChatMembersPage: React.FC<ChatMembersPageProps> = ({
                       borderRadius: 10,
                       border: 'none',
                       backgroundColor: 'var(--brand-pink-500)',
-                      color: 'var(--neutral-50)',
+                      color: 'var(--on-accent)',
                       fontFamily: 'var(--font-family)',
                       fontSize: 14,
                       fontWeight: 600,

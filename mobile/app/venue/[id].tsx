@@ -503,7 +503,7 @@ export default function VenueDetailScreen() {
                 disabled={followLoading}
               >
                 {followLoading ? (
-                  <ActivityIndicator size="small" color={isFollowing ? SynthTokens.colors.neutral0 : PINK} />
+                  <ActivityIndicator size="small" color={isFollowing ? SynthTokens.colors.onAccent : PINK} />
                 ) : (
                   <Text style={[styles.followBtnTxt, isFollowing && styles.followBtnTxtOn]}>
                     {isFollowing ? 'Following' : 'Follow'}
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     color: PINK,
   },
   followBtnTxtOn: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
   },
   sectionLabel: {
     marginBottom: 4,

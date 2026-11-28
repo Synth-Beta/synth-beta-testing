@@ -7,6 +7,7 @@ import {
   Image,
   Text,
   Alert,
+  Switch,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,11 +22,13 @@ import {
   Check,
   CalendarDays,
   LogOut,
+  Moon,
 } from 'lucide-react-native';
 import { isSecretAdminMenuAllowed } from '@synth/shared';
 import { unregisterExpoPushToken } from '../lib/pushTokenSync';
 import { supabase } from '../src/integrations/supabase/client';
 import { SynthTokens } from '../src/tokens/SynthTokens';
+import { useDarkMode } from '../src/theme/themePreference';
 
 export default function AppMenuScreen() {
   const router = useRouter();
@@ -197,6 +200,8 @@ export default function AppMenuScreen() {
           </View>
         ) : null}
 
+        <DarkModeRow />
+
         <Pressable
           style={[styles.logoutBtn, signingOut && { opacity: 0.6 }]}
           disabled={signingOut}
@@ -208,11 +213,37 @@ export default function AppMenuScreen() {
             ]);
           }}
         >
-          <LogOut size={20} color={SynthTokens.colors.neutral0} />
+          <LogOut size={20} color={SynthTokens.colors.onAccent} />
           <Text style={styles.logoutTxt}>{signingOut ? 'Logging out…' : 'Log out'}</Text>
         </Pressable>
       </ScrollView>
     </View>
+  );
+}
+
+/** The whole row is the target; the switch slides with the native spring. */
+function DarkModeRow() {
+  const { isDark, setDark } = useDarkMode();
+  return (
+    <Pressable
+      style={[styles.menuRow, styles.themeRow]}
+      onPress={() => setDark(!isDark)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: isDark }}
+      accessibilityLabel="Dark mode"
+    >
+      <View style={styles.menuIconWrap}>
+        <Moon size={22} color={SynthTokens.colors.neutral900} />
+      </View>
+      <Text style={[styles.menuLabel, styles.themeLabel]}>Dark mode</Text>
+      <Switch
+        value={isDark}
+        onValueChange={setDark}
+        trackColor={{ false: SynthTokens.colors.neutral200, true: SynthTokens.colors.brandPink500 }}
+        ios_backgroundColor={SynthTokens.colors.neutral200}
+        importantForAccessibility="no-hide-descendants"
+      />
+    </Pressable>
   );
 }
 
@@ -307,6 +338,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: SynthTokens.colors.neutral200,
   },
+  themeRow: { marginTop: 12, paddingVertical: 10, borderBottomWidth: 0 },
+  themeLabel: { flex: 1 },
   menuIconWrap: {
     width: 24,
     height: 24,
@@ -359,7 +392,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: SynthTokens.colors.brandPink050,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -396,7 +429,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
   },
-  logoutTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral0 },
+  logoutTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.onAccent },
   verifiedTitle: {
     fontSize: 14,
     fontWeight: '700',

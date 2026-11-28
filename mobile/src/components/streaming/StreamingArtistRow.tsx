@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, type ColorValue } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthTokens } from '../../tokens/SynthTokens';
 
@@ -7,7 +7,7 @@ const MEDAL_GOLD = '#F5A623';
 const MEDAL_SILVER = '#8E8E93';
 const MEDAL_BRONZE = '#C86A1E';
 
-function medalColor(index: number): string {
+function medalColor(index: number): ColorValue {
   if (index === 0) return MEDAL_GOLD;
   if (index === 1) return MEDAL_SILVER;
   if (index === 2) return MEDAL_BRONZE;
@@ -50,7 +50,7 @@ export function StreamingArtistRow({ artist, rank, accentColor }: StreamingArtis
           </Text>
         ) : null}
       </View>
-      <Text style={[styles.rank, { color: rankColor + 'CC' }]}>#{rank}</Text>
+      <Text style={[styles.rank, { color: rankColor, opacity: 0.8 }]}>#{rank}</Text>
     </View>
   );
 }
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarFallbackText: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     fontWeight: '700',
     fontSize: 15,
   },

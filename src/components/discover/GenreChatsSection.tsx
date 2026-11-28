@@ -83,7 +83,7 @@ function GenreCard({
                     onClick={() => onJoin(genre.id)}
                     // Ink, not the genre color: white on amber/lime/cyan fails 4.5:1 at 12px.
                     // In the side panel five ink pills would outshout the feed, so Join goes quiet there.
-                    className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition-[opacity,transform] duration-150 active:scale-[0.96] disabled:opacity-60 ${isList ? 'bg-[var(--neutral-100)] text-[var(--neutral-900)] hover:bg-[var(--neutral-200)]' : 'bg-[var(--neutral-900)] text-white'}`}
+                    className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition-[opacity,transform] duration-150 active:scale-[0.96] disabled:opacity-60 ${isList ? 'bg-[var(--neutral-100)] text-[var(--neutral-900)] hover:bg-[var(--neutral-200)]' : 'bg-[var(--neutral-900)] text-[var(--neutral-0)]'}`}
                 >
                     {joining ? 'Joining…' : 'Join'}
                 </button>

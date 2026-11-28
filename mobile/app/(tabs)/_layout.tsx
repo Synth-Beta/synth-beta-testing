@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Home, Users, Search, MessageCircle, User } from 'lucide-react-native';
-import { SynthTokens } from '../../src/tokens/SynthTokens';
+import { usePalette } from '../../src/theme/themePreference';
 import { SynthTabBar } from '../../src/components/navigation/SynthTabBar';
 import { PushPrimer } from '../../src/components/PushPrimer';
 import { TourOverlay } from '../../src/components/TourOverlay';
@@ -10,6 +10,7 @@ import { shouldAutoOpenFeatureTour } from '../../lib/featureTour';
 import { isTourActive, startTour } from '../../lib/tourProgress';
 
 export default function TabLayout() {
+  const palette = usePalette();
   // First time a new account reaches the app (right after onboarding): run the tutorial once.
   useEffect(() => {
     let cancelled = false;
@@ -30,8 +31,8 @@ export default function TabLayout() {
       tabBar={props => <SynthTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: SynthTokens.colors.brandPink500,
-        tabBarInactiveTintColor: SynthTokens.colors.neutral400,
+        tabBarActiveTintColor: palette.brandPink500,
+        tabBarInactiveTintColor: palette.neutral400,
         tabBarShowLabel: false,
       }}>
       <Tabs.Screen

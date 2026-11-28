@@ -317,7 +317,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
               onPress={() => void handleAcceptFriendRequest(item)}
             >
               {busyHere ? (
-                <ActivityIndicator color={SynthTokens.colors.neutral0} size="small" />
+                <ActivityIndicator color={SynthTokens.colors.onAccent} size="small" />
               ) : (
                 <Text style={styles.acceptBtnText}>Accept</Text>
               )}
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     backgroundColor: PINK,
   },
   acceptBtnText: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     fontWeight: '700',
     fontSize: 15,
   },

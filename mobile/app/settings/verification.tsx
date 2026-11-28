@@ -161,8 +161,8 @@ export default function VerificationSettingsScreen() {
             <View style={styles.verifiedBanner}>
               <Sparkles size={22} color={GREEN} />
               <View style={styles.bannerText}>
-                <Text style={[styles.bannerTitle, { color: '#065f46' }]}>Verified account</Text>
-                <SynthText variant="meta" style={{ color: '#047857' }}>
+                <Text style={[styles.bannerTitle, { color: SynthTokens.colors.success }]}>Verified account</Text>
+                <SynthText variant="meta" style={{ color: SynthTokens.colors.success }}>
                   You've met the trust criteria for Synth verification.
                 </SynthText>
               </View>
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: SynthTokens.alpha('success', '1F'),
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,

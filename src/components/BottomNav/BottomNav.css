@@ -81,12 +81,12 @@
   background-color: var(--brand-pink-500);
   border-radius: 20px;
   flex-shrink: 0;
-  color: var(--neutral-50);
+  color: var(--on-accent);
 }
 
 /* Ensure plus icon inherits Neutral-50 color */
 .bottom-nav__item--cta .synth-icon {
-  color: var(--neutral-50);
+  color: var(--on-accent);
 }
 
 .bottom-nav__item--cta:hover {

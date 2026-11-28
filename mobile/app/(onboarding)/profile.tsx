@@ -523,10 +523,10 @@ export default function ProfileSetupScreen() {
     const usernameHint = (() => {
         switch (usernameStatus) {
             case 'checking': return { text: 'Checking…', color: SynthTokens.colors.neutral600 };
-            case 'available': return { text: 'Username available', color: '#16a34a' };
-            case 'taken': return { text: 'Username already taken', color: '#dc2626' };
+            case 'available': return { text: 'Username available', color: SynthTokens.colors.success };
+            case 'taken': return { text: 'Username already taken', color: SynthTokens.colors.error };
             case 'error': return { text: "Couldn't check availability. We'll verify when you continue.", color: SynthTokens.colors.neutral600 };
-            case 'invalid': return { text: 'Only letters, numbers, _ and . allowed (3–30 chars)', color: '#dc2626' };
+            case 'invalid': return { text: 'Only letters, numbers, _ and . allowed (3–30 chars)', color: SynthTokens.colors.error };
             default: return null;
         }
     })();
@@ -564,7 +564,7 @@ export default function ProfileSetupScreen() {
                             placeholderTextColor={SynthTokens.colors.neutral400}
                             autoCorrect={false}
                         />
-                        {nameError ? <Text style={[styles.hint, { color: '#dc2626' }]}>{nameError}</Text> : null}
+                        {nameError ? <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{nameError}</Text> : null}
                     </View>
 
                     {/* Username */}
@@ -588,7 +588,7 @@ export default function ProfileSetupScreen() {
                         {usernameHint ? (
                             <Text style={[styles.hint, { color: usernameHint.color }]}>{usernameHint.text}</Text>
                         ) : null}
-                        {usernameError ? <Text style={[styles.hint, { color: '#dc2626' }]}>{usernameError}</Text> : null}
+                        {usernameError ? <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{usernameError}</Text> : null}
                     </View>
 
                     {/* Birthday */}
@@ -600,7 +600,7 @@ export default function ProfileSetupScreen() {
                             onChange={v => { setBirthday(v); setBirthdayError(v.length >= 10 ? validateBirthday(v) : ''); }}
                         />
                         {birthdayError ? (
-                            <Text style={[styles.hint, { color: '#dc2626' }]}>{birthdayError}</Text>
+                            <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{birthdayError}</Text>
                         ) : (
                             <Text style={styles.hint}>You must be at least 13 years old</Text>
                         )}
@@ -626,7 +626,7 @@ export default function ProfileSetupScreen() {
                             placeholderTextColor={SynthTokens.colors.neutral400}
                         />
                         {locateCityError ? (
-                            <Text style={[styles.hint, { color: '#dc2626' }]}>{locateCityError}</Text>
+                            <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{locateCityError}</Text>
                         ) : (
                             <Text style={styles.hint}>Used for local event discovery</Text>
                         )}
@@ -655,7 +655,7 @@ export default function ProfileSetupScreen() {
                         </View>
                         <Text style={styles.hint}>This helps us understand which communities find Synth most often.</Text>
                         {acquisitionSourceError && acquisitionSource !== 'Other' ? (
-                            <Text style={[styles.hint, { color: '#dc2626' }]}>{acquisitionSourceError}</Text>
+                            <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{acquisitionSourceError}</Text>
                         ) : null}
                     </View>
                     {acquisitionSource === 'Other' && (
@@ -673,7 +673,7 @@ export default function ProfileSetupScreen() {
                                 multiline
                             />
                             {acquisitionSourceError ? (
-                                <Text style={[styles.hint, { color: '#dc2626' }]}>{acquisitionSourceError}</Text>
+                                <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{acquisitionSourceError}</Text>
                             ) : (
                                 <Text style={styles.hint}>Share any detail that helps us attribute this referral.</Text>
                             )}
@@ -695,7 +695,7 @@ export default function ProfileSetupScreen() {
                             autoCorrect={false}
                             maxLength={12}
                         />
-                        <Text style={[styles.hint, inviteCodeError ? { color: '#dc2626' } : null]}>
+                        <Text style={[styles.hint, inviteCodeError ? { color: SynthTokens.colors.error } : null]}>
                             {inviteCodeError || "Got a code from a friend? You'll be friends on Synth right away."}
                         </Text>
                     </View>
@@ -714,7 +714,7 @@ export default function ProfileSetupScreen() {
                                 keyboardType="email-address"
                             />
                             {contactEmailError ? (
-                                <Text style={[styles.hint, { color: '#dc2626' }]}>{contactEmailError}</Text>
+                                <Text style={[styles.hint, { color: SynthTokens.colors.error }]}>{contactEmailError}</Text>
                             ) : (
                                 <Text style={styles.hint}>Optional here — we'll ask again once you're set up. We use it to reach you about your account and about reports of harassment or abuse.</Text>
                             )}
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
         color: SynthTokens.colors.neutral900,
     },
     inputError: {
-        borderColor: '#dc2626',
+        borderColor: SynthTokens.colors.error,
     },
     optionsRow: {
         flexDirection: 'row',

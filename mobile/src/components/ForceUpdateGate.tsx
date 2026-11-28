@@ -85,5 +85,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 999,
   },
-  buttonText: { color: SynthTokens.colors.neutral0, fontSize: 16, fontWeight: '600' },
+  buttonText: { color: SynthTokens.colors.onAccent, fontSize: 16, fontWeight: '600' },
 });

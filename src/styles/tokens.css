@@ -18,6 +18,7 @@
   --neutral-400: #8A8F98; /* disabled text/icons */
   --neutral-600: #5D646F; /* secondary text, metadata */
   --neutral-900: #0E0E0E; /* primary text */
+  --on-accent: #FFFDFA;   /* text/icons on pink, red or photos: same in both themes */
   
   /* ============================================
      COLORS - BRAND PINKS
@@ -167,4 +168,195 @@
      ============================================ */
   
   --radius-corner: 10px;
+}
+
+/* ============================================
+   DARK THEME
+   Venue at night: warm near-black, surfaces lift by getting lighter (no shadows needed),
+   pink lifted so it reads on dark. Mirrors mobile/src/tokens/SynthTokens.ts darkColors.
+   Applied by html.dark (src/lib/theme.ts; set before first paint in index.html).
+   ============================================ */
+:root.dark {
+  color-scheme: dark;
+  --neutral-0: #1B1918;
+  --neutral-50: #121110;
+  --neutral-100: #252321;
+  --neutral-200: #353230;
+  --neutral-400: #807B76;
+  --neutral-600: #ABA59F;
+  --neutral-900: #F4F0EB;
+
+  --brand-pink-050: #2B1621;
+  --brand-pink-500: #D63C93;
+  --brand-pink-600: #E968AD;
+  --brand-pink-700: #F28DC2;
+
+  --status-success-050: #14271E;
+  --status-success-500: #5BBF8E;
+  --status-warning-050: #2A2312;
+  --status-warning-500: #E2B84A;
+  --status-error-050: #2E1715;
+  --status-error-500: #F07167;
+
+  --info-blue-050: #142035;
+  --info-blue-500: #7AA5F7;
+
+  --state-disabled-bg: #2A2826;
+  --state-disabled-text: #8C8680;
+  --overlay-50: rgba(0, 0, 0, 0.6);
+  --overlay-20: rgba(0, 0, 0, 0.3);
+
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --shadow-default: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   TAILWIND GRAY / WHITE BY ROLE
+   tailwind.config.ts points bg, text, border, divide and ring white/black/gray utilities at these,
+   so existing classes follow the theme. text-white and bg-black stay fixed (text on pink, overlays).
+   ============================================ */
+:root {
+  --tw-bg-gray-50: 249 250 251;
+  --tw-text-gray-50: 249 250 251;
+  --tw-line-gray-50: 249 250 251;
+  --tw-bg-gray-100: 243 244 246;
+  --tw-text-gray-100: 243 244 246;
+  --tw-line-gray-100: 243 244 246;
+  --tw-bg-gray-200: 229 231 235;
+  --tw-text-gray-200: 229 231 235;
+  --tw-line-gray-200: 229 231 235;
+  --tw-bg-gray-300: 209 213 219;
+  --tw-text-gray-300: 209 213 219;
+  --tw-line-gray-300: 209 213 219;
+  --tw-bg-gray-400: 156 163 175;
+  --tw-text-gray-400: 156 163 175;
+  --tw-line-gray-400: 156 163 175;
+  --tw-bg-gray-500: 107 114 128;
+  --tw-text-gray-500: 107 114 128;
+  --tw-line-gray-500: 107 114 128;
+  --tw-bg-gray-600: 75 85 99;
+  --tw-text-gray-600: 75 85 99;
+  --tw-line-gray-600: 75 85 99;
+  --tw-bg-gray-700: 55 65 81;
+  --tw-text-gray-700: 55 65 81;
+  --tw-line-gray-700: 55 65 81;
+  --tw-bg-gray-800: 31 41 55;
+  --tw-text-gray-800: 31 41 55;
+  --tw-line-gray-800: 31 41 55;
+  --tw-bg-gray-900: 17 24 39;
+  --tw-text-gray-900: 17 24 39;
+  --tw-line-gray-900: 17 24 39;
+  --tw-bg-gray-950: 3 7 18;
+  --tw-text-gray-950: 3 7 18;
+  --tw-line-gray-950: 3 7 18;
+  --tw-bg-white: 255 253 250;
+  --tw-line-white: 255 253 250;
+  --tw-text-black: 14 14 14;
+  --tw-line-black: 14 14 14;
+  --tw-bg-neutral-50: 250 250 250;
+  --tw-text-neutral-50: 250 250 250;
+  --tw-line-neutral-50: 250 250 250;
+  --tw-bg-neutral-100: 245 245 245;
+  --tw-text-neutral-100: 245 245 245;
+  --tw-line-neutral-100: 245 245 245;
+  --tw-bg-neutral-200: 229 229 229;
+  --tw-text-neutral-200: 229 229 229;
+  --tw-line-neutral-200: 229 229 229;
+  --tw-bg-neutral-300: 212 212 212;
+  --tw-text-neutral-300: 212 212 212;
+  --tw-line-neutral-300: 212 212 212;
+  --tw-bg-neutral-400: 163 163 163;
+  --tw-text-neutral-400: 163 163 163;
+  --tw-line-neutral-400: 163 163 163;
+  --tw-bg-neutral-500: 115 115 115;
+  --tw-text-neutral-500: 115 115 115;
+  --tw-line-neutral-500: 115 115 115;
+  --tw-bg-neutral-600: 82 82 82;
+  --tw-text-neutral-600: 82 82 82;
+  --tw-line-neutral-600: 82 82 82;
+  --tw-bg-neutral-700: 64 64 64;
+  --tw-text-neutral-700: 64 64 64;
+  --tw-line-neutral-700: 64 64 64;
+  --tw-bg-neutral-800: 38 38 38;
+  --tw-text-neutral-800: 38 38 38;
+  --tw-line-neutral-800: 38 38 38;
+  --tw-bg-neutral-900: 23 23 23;
+  --tw-text-neutral-900: 23 23 23;
+  --tw-line-neutral-900: 23 23 23;
+  --tw-bg-neutral-950: 10 10 10;
+  --tw-text-neutral-950: 10 10 10;
+  --tw-line-neutral-950: 10 10 10;
+}
+:root.dark {
+  --tw-bg-gray-50: 37 35 33;
+  --tw-text-gray-50: 249 250 251;
+  --tw-line-gray-50: 42 40 38;
+  --tw-bg-gray-100: 37 35 33;
+  --tw-text-gray-100: 243 244 246;
+  --tw-line-gray-100: 42 40 38;
+  --tw-bg-gray-200: 53 50 48;
+  --tw-text-gray-200: 229 231 235;
+  --tw-line-gray-200: 53 50 48;
+  --tw-bg-gray-300: 74 70 67;
+  --tw-text-gray-300: 90 86 82;
+  --tw-line-gray-300: 74 70 67;
+  --tw-bg-gray-400: 128 123 118;
+  --tw-text-gray-400: 128 123 118;
+  --tw-line-gray-400: 128 123 118;
+  --tw-bg-gray-500: 110 105 100;
+  --tw-text-gray-500: 171 165 159;
+  --tw-line-gray-500: 128 123 118;
+  --tw-bg-gray-600: 90 86 82;
+  --tw-text-gray-600: 171 165 159;
+  --tw-line-gray-600: 171 165 159;
+  --tw-bg-gray-700: 58 54 51;
+  --tw-text-gray-700: 244 240 235;
+  --tw-line-gray-700: 171 165 159;
+  --tw-bg-gray-800: 58 54 51;
+  --tw-text-gray-800: 244 240 235;
+  --tw-line-gray-800: 201 195 189;
+  --tw-bg-gray-900: 58 54 51;
+  --tw-text-gray-900: 244 240 235;
+  --tw-line-gray-900: 244 240 235;
+  --tw-bg-gray-950: 42 40 38;
+  --tw-text-gray-950: 244 240 235;
+  --tw-line-gray-950: 244 240 235;
+  --tw-bg-white: 27 25 24;
+  --tw-line-white: 27 25 24;
+  --tw-text-black: 244 240 235;
+  --tw-line-black: 244 240 235;
+  --tw-bg-neutral-50: var(--tw-bg-gray-50);
+  --tw-text-neutral-50: var(--tw-text-gray-50);
+  --tw-line-neutral-50: var(--tw-line-gray-50);
+  --tw-bg-neutral-100: var(--tw-bg-gray-100);
+  --tw-text-neutral-100: var(--tw-text-gray-100);
+  --tw-line-neutral-100: var(--tw-line-gray-100);
+  --tw-bg-neutral-200: var(--tw-bg-gray-200);
+  --tw-text-neutral-200: var(--tw-text-gray-200);
+  --tw-line-neutral-200: var(--tw-line-gray-200);
+  --tw-bg-neutral-300: var(--tw-bg-gray-300);
+  --tw-text-neutral-300: var(--tw-text-gray-300);
+  --tw-line-neutral-300: var(--tw-line-gray-300);
+  --tw-bg-neutral-400: var(--tw-bg-gray-400);
+  --tw-text-neutral-400: var(--tw-text-gray-400);
+  --tw-line-neutral-400: var(--tw-line-gray-400);
+  --tw-bg-neutral-500: var(--tw-bg-gray-500);
+  --tw-text-neutral-500: var(--tw-text-gray-500);
+  --tw-line-neutral-500: var(--tw-line-gray-500);
+  --tw-bg-neutral-600: var(--tw-bg-gray-600);
+  --tw-text-neutral-600: var(--tw-text-gray-600);
+  --tw-line-neutral-600: var(--tw-line-gray-600);
+  --tw-bg-neutral-700: var(--tw-bg-gray-700);
+  --tw-text-neutral-700: var(--tw-text-gray-700);
+  --tw-line-neutral-700: var(--tw-line-gray-700);
+  --tw-bg-neutral-800: var(--tw-bg-gray-800);
+  --tw-text-neutral-800: var(--tw-text-gray-800);
+  --tw-line-neutral-800: var(--tw-line-gray-800);
+  --tw-bg-neutral-900: var(--tw-bg-gray-900);
+  --tw-text-neutral-900: var(--tw-text-gray-900);
+  --tw-line-neutral-900: var(--tw-line-gray-900);
+  --tw-bg-neutral-950: var(--tw-bg-gray-950);
+  --tw-text-neutral-950: var(--tw-text-gray-950);
+  --tw-line-neutral-950: var(--tw-line-gray-950);
 }

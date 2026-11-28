@@ -103,7 +103,7 @@
 /* Primary variant: Brand Pink background, Neutral-50 text/icons */
 .synth-button--primary {
   background-color: var(--brand-pink-500);
-  color: var(--neutral-50) !important; /* Override global button color */
+  color: var(--on-accent) !important; /* Override global button color */
 }
 
 .synth-button--primary:hover:not(:disabled) {
@@ -205,7 +205,7 @@
 .synth-button--primary .synth-button__icon,
 .synth-button--primary .synth-icon,
 .synth-button--primary svg {
-  color: var(--neutral-50) !important;
+  color: var(--on-accent) !important;
 }
 
 /* Secondary: Brand Pink icons */

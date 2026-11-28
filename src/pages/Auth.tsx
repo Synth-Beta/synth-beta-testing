@@ -292,7 +292,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
   return (
     <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4" style={{
-      background: 'linear-gradient(180deg, #FDF2F7 0%, var(--neutral-0) 70%)',
+      background: 'linear-gradient(180deg, var(--brand-pink-050) 0%, var(--neutral-0) 70%)',
     }}>
       {/* One stage light from above, panning slowly; the card sits where it lands. */}
       <div
@@ -312,23 +312,23 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
           <CardTitle className="text-[32px] font-semibold leading-[1.2] text-black mb-1" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Synth
           </CardTitle>
-          <CardDescription className="text-[#5D646F] text-[18px] font-normal leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          <CardDescription className="text-[var(--neutral-600)] text-[18px] font-normal leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Connect with people at events you love
           </CardDescription>
         </CardHeader>
         <CardContent className="px-10 pb-10">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}>
-            <TabsList className="grid w-full grid-cols-2 bg-[#F5F5F5] rounded-xl p-1">
+            <TabsList className="grid w-full grid-cols-2 bg-[var(--neutral-100)] rounded-xl p-1">
               <TabsTrigger
                 value="signin"
-                className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition"
+                className="data-[state=active]:bg-white data-[state=active]:text-black text-[var(--neutral-600)] font-medium rounded-lg transition"
                 style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
               >
                 Sign in
               </TabsTrigger>
               <TabsTrigger
                 value="signup"
-                className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition"
+                className="data-[state=active]:bg-white data-[state=active]:text-black text-[var(--neutral-600)] font-medium rounded-lg transition"
                 style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
               >
                 Sign up
@@ -383,7 +383,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={isResettingPassword}
-                      className="text-[14px] font-medium leading-[1.5] text-[#5D646F] hover:text-[#0E0E0E] transition-colors disabled:opacity-50"
+                      className="text-[14px] font-medium leading-[1.5] text-[var(--neutral-600)] hover:text-[var(--neutral-900)] transition-colors disabled:opacity-50"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     >
                       {isResettingPassword ? 'Sending...' : 'Forgot password?'}

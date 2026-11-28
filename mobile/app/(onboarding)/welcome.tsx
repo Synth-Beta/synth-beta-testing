@@ -63,7 +63,7 @@ export default function WelcomeScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={[SynthTokens.colors.brandPink500, SynthTokens.colors.purpleAccent]}
+                colors={[SynthTokens.palette.light.brandPink500, SynthTokens.palette.light.purpleAccent]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
 
             <SafeAreaView style={styles.header}>
                 <Pressable onPress={handleBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
-                    <ChevronLeft color={SynthTokens.colors.neutral0} size={28} />
+                    <ChevronLeft color={SynthTokens.colors.onAccent} size={28} />
                 </Pressable>
             </SafeAreaView>
 
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     },
     button: {
         width: '100%',
-        backgroundColor: '#FFFDFA',
+        backgroundColor: SynthTokens.palette.light.neutral0,
     },
     secondaryButton: {
         width: '100%',

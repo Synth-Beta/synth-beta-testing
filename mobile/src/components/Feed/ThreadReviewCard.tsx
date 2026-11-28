@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     alignItems: 'center',
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: SynthTokens.alpha('neutral0', 'EB'),
   },
   dateBadgeSmall: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, color: SynthTokens.colors.neutral600 },
   dateBadgeDay: { fontSize: 22, fontWeight: '700', color: SynthTokens.colors.neutral900, marginVertical: 1 },

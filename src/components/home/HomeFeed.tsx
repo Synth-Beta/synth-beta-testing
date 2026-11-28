@@ -2343,7 +2343,7 @@ interface FriendEventInterest {
                         disabled={isJoining}
                         style={isJoined
                           ? { backgroundColor: 'var(--neutral-900)', color: 'var(--neutral-50)', fontWeight: 700 }
-                          : { backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)', fontWeight: 700 }
+                          : { backgroundColor: 'var(--brand-pink-500)', color: 'var(--on-accent)', fontWeight: 700 }
                         }
                       >
                         {isJoining ? (

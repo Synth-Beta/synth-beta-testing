@@ -245,7 +245,7 @@
   font-size: var(--typography-meta-size, 16px);
   font-weight: var(--typography-meta-weight, 500);
   line-height: var(--typography-meta-line-height, 1.5);
-  color: var(--neutral-50);
+  color: #FFFDFA; /* on pink in both themes */
 }
 
 .side-menu__user-info-section {
@@ -266,3 +266,28 @@
   margin-right: 12px;
 }
 
+
+/* Dark mode row: same height and left edge as MenuCategory rows, between verification and Log out. */
+.side-menu__theme-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--spacing-menu-item-row-height, 48px);
+  padding-left: var(--spacing-screen-margin-x, 20px);
+  padding-right: 4px;
+  margin-top: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.side-menu__theme-icon {
+  flex-shrink: 0;
+  color: var(--neutral-600);
+}
+
+.side-menu__theme-label {
+  flex: 1;
+  font-size: var(--typography-body-size, 20px);
+  font-weight: 500;
+  color: var(--neutral-900);
+}

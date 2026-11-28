@@ -62,6 +62,6 @@ const styles = StyleSheet.create({
     color: SynthTokens.colors.neutral600,
   },
   labelOn: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
   },
 });

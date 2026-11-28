@@ -282,7 +282,7 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
             onPress={() => void handleResync()}
             disabled={syncing || disconnecting}
           >
-            <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
+            <RefreshCw size={16} color={SynthTokens.colors.onAccent} />
             <Text style={styles.btnPrimaryText}>{syncing ? 'Syncing…' : 'Resync stats'}</Text>
           </Pressable>
         )}
@@ -312,7 +312,7 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
           onPress={() => void handleConnectSpotifyInApp()}
           disabled={syncing}
         >
-          <Music size={16} color={SynthTokens.colors.neutral0} />
+          <Music size={16} color={SynthTokens.colors.onAccent} />
           <Text style={styles.btnSpotifyText}>{syncing ? 'Connecting…' : 'Connect Spotify (admin)'}</Text>
         </Pressable>
       ) : null}
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: SynthTokens.alpha('success', '1F'),
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   connectedText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#047857',
+    color: SynthTokens.colors.success,
   },
   disconnectLink: {
     color: SynthTokens.colors.neutral600,
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   btnPrimaryText: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   btnSpotifyText: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     fontSize: 15,
     fontWeight: '700',
   },

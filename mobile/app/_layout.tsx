@@ -30,6 +30,9 @@ import { InviteService, inviteCodeFromUrl } from '../src/services/inviteService'
 import { installAppIssueReporter, setAppIssueRoute } from '../src/services/clientIssueReporter';
 import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
 import { ToastHost } from '../src/components/Toast';
+import { StatusBar } from 'expo-status-bar';
+import { loadThemePreference } from '../src/theme/themePreference';
+import { SynthTokens } from '../src/tokens/SynthTokens';
 
 Sentry.init({
   dsn: 'https://9b6672725128580d795a0d6fda5b6adb@o4510262186409984.ingest.us.sentry.io/4512364974243840',
@@ -52,6 +55,8 @@ export const ContactEmailContext = React.createContext<{
 
 // Hide the native splash as soon as JS is running so the skeleton takes over immediately.
 void SplashScreen.hideAsync().catch(() => {});
+// Before the first screen renders, so a saved dark choice doesn't flash light.
+void loadThemePreference();
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 
@@ -666,7 +671,8 @@ function RootLayout() {
     <ContactEmailContext.Provider value={{ markContactEmailSaved }}>
     <InterestedProvider>
     <BrowseLocationProvider enabled={Boolean(sessionUserId) && isOnboardingComplete === true}>
-    <Stack screenOptions={{ headerShown: false }}>
+    <StatusBar style="auto" />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: SynthTokens.colors.neutral50 } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="email-required" options={{ headerShown: false, animation: 'fade' }} />

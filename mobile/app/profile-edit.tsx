@@ -321,7 +321,7 @@ export default function ProfileEditScreen() {
               )}
               {uploadingAvatar && (
                 <View style={styles.avatarOverlay}>
-                  <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                  <ActivityIndicator size="small" color={SynthTokens.colors.onAccent} />
                 </View>
               )}
             </View>
@@ -410,7 +410,7 @@ export default function ProfileEditScreen() {
               value={similarUsersNotifications}
               onValueChange={setSimilarUsersNotifications}
               trackColor={{ false: SynthTokens.colors.neutral200, true: 'rgba(204,36,134,0.25)' }}
-              thumbColor={similarUsersNotifications ? PINK : SynthTokens.colors.neutral0}
+              thumbColor={similarUsersNotifications ? PINK : SynthTokens.colors.onAccent}
               ios_backgroundColor={SynthTokens.colors.neutral200}
             />
           </View>
@@ -422,7 +422,7 @@ export default function ProfileEditScreen() {
           disabled={saving || loading}
         >
           {saving
-            ? <ActivityIndicator color={SynthTokens.colors.neutral0} />
+            ? <ActivityIndicator color={SynthTokens.colors.onAccent} />
             : <Text style={styles.saveButtonText}>Save changes</Text>}
         </TouchableOpacity>
       </ScrollView>
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     fontWeight: '700',
     fontSize: 16,
   },

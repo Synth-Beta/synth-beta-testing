@@ -18,6 +18,183 @@ export default {
 			}
 		},
 		extend: {
+			// Theme-aware per utility (vars in src/styles/tokens.css): bg-white is a surface, text-white is ink on pink.
+			backgroundColor: {
+				white: 'rgb(var(--tw-bg-white) / <alpha-value>)',
+				gray: {
+					50: 'rgb(var(--tw-bg-gray-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-bg-gray-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-bg-gray-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-bg-gray-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-bg-gray-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-bg-gray-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-bg-gray-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-bg-gray-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-bg-gray-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-bg-gray-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-bg-gray-950) / <alpha-value>)'
+				},
+				neutral: {
+					50: 'rgb(var(--tw-bg-neutral-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-bg-neutral-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-bg-neutral-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-bg-neutral-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-bg-neutral-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-bg-neutral-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-bg-neutral-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-bg-neutral-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-bg-neutral-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-bg-neutral-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-bg-neutral-950) / <alpha-value>)'
+				}
+			},
+			textColor: {
+				black: 'rgb(var(--tw-text-black) / <alpha-value>)',
+				gray: {
+					50: 'rgb(var(--tw-text-gray-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-text-gray-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-text-gray-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-text-gray-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-text-gray-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-text-gray-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-text-gray-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-text-gray-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-text-gray-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-text-gray-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-text-gray-950) / <alpha-value>)'
+				},
+				neutral: {
+					50: 'rgb(var(--tw-text-neutral-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-text-neutral-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-text-neutral-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-text-neutral-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-text-neutral-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-text-neutral-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-text-neutral-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-text-neutral-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-text-neutral-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-text-neutral-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-text-neutral-950) / <alpha-value>)'
+				}
+			},
+			borderColor: {
+				white: 'rgb(var(--tw-line-white) / <alpha-value>)',
+				black: 'rgb(var(--tw-line-black) / <alpha-value>)',
+				gray: {
+					50: 'rgb(var(--tw-line-gray-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-line-gray-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-line-gray-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-line-gray-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-line-gray-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-line-gray-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-line-gray-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-line-gray-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-line-gray-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-line-gray-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-line-gray-950) / <alpha-value>)'
+				},
+				neutral: {
+					50: 'rgb(var(--tw-line-neutral-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-line-neutral-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-line-neutral-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-line-neutral-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-line-neutral-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-line-neutral-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-line-neutral-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-line-neutral-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-line-neutral-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-line-neutral-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-line-neutral-950) / <alpha-value>)'
+				}
+			},
+			divideColor: {
+				white: 'rgb(var(--tw-line-white) / <alpha-value>)',
+				black: 'rgb(var(--tw-line-black) / <alpha-value>)',
+				gray: {
+					50: 'rgb(var(--tw-line-gray-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-line-gray-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-line-gray-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-line-gray-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-line-gray-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-line-gray-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-line-gray-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-line-gray-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-line-gray-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-line-gray-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-line-gray-950) / <alpha-value>)'
+				},
+				neutral: {
+					50: 'rgb(var(--tw-line-neutral-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-line-neutral-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-line-neutral-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-line-neutral-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-line-neutral-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-line-neutral-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-line-neutral-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-line-neutral-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-line-neutral-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-line-neutral-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-line-neutral-950) / <alpha-value>)'
+				}
+			},
+			ringColor: {
+				white: 'rgb(var(--tw-line-white) / <alpha-value>)',
+				black: 'rgb(var(--tw-line-black) / <alpha-value>)',
+				gray: {
+					50: 'rgb(var(--tw-line-gray-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-line-gray-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-line-gray-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-line-gray-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-line-gray-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-line-gray-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-line-gray-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-line-gray-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-line-gray-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-line-gray-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-line-gray-950) / <alpha-value>)'
+				},
+				neutral: {
+					50: 'rgb(var(--tw-line-neutral-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-line-neutral-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-line-neutral-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-line-neutral-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-line-neutral-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-line-neutral-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-line-neutral-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-line-neutral-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-line-neutral-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-line-neutral-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-line-neutral-950) / <alpha-value>)'
+				}
+			},
+			placeholderColor: {
+				gray: {
+					50: 'rgb(var(--tw-text-gray-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-text-gray-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-text-gray-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-text-gray-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-text-gray-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-text-gray-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-text-gray-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-text-gray-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-text-gray-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-text-gray-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-text-gray-950) / <alpha-value>)'
+				},
+				neutral: {
+					50: 'rgb(var(--tw-text-neutral-50) / <alpha-value>)',
+					100: 'rgb(var(--tw-text-neutral-100) / <alpha-value>)',
+					200: 'rgb(var(--tw-text-neutral-200) / <alpha-value>)',
+					300: 'rgb(var(--tw-text-neutral-300) / <alpha-value>)',
+					400: 'rgb(var(--tw-text-neutral-400) / <alpha-value>)',
+					500: 'rgb(var(--tw-text-neutral-500) / <alpha-value>)',
+					600: 'rgb(var(--tw-text-neutral-600) / <alpha-value>)',
+					700: 'rgb(var(--tw-text-neutral-700) / <alpha-value>)',
+					800: 'rgb(var(--tw-text-neutral-800) / <alpha-value>)',
+					900: 'rgb(var(--tw-text-neutral-900) / <alpha-value>)',
+					950: 'rgb(var(--tw-text-neutral-950) / <alpha-value>)'
+				}
+			},
 			colors: {
 				// No pure white/black: bg-white, text-black etc. resolve to tokens.css neutral-0 / neutral-900.
 				white: '#FFFDFA',

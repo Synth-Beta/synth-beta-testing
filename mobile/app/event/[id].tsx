@@ -572,8 +572,8 @@ export default function EventDetailScreen() {
                             >
                                 <Heart
                                     size={22}
-                                    color={isInterested ? SynthTokens.colors.neutral0 : PINK}
-                                    fill={isInterested ? SynthTokens.colors.neutral0 : 'transparent'}
+                                    color={isInterested ? SynthTokens.colors.onAccent : PINK}
+                                    fill={isInterested ? SynthTokens.colors.onAccent : 'transparent'}
                                 />
                                 <Text style={[styles.outlineActionText, isInterested && styles.outlineActionTextOn]} numberOfLines={1}>
                                     {isInterested ? 'Interested' : "I'm Interested"}
@@ -594,7 +594,7 @@ export default function EventDetailScreen() {
                             >
                                 <Calendar
                                     size={22}
-                                    color={rsvp === 'going' ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral900}
+                                    color={rsvp === 'going' ? SynthTokens.colors.onAccent : SynthTokens.colors.neutral900}
                                 />
                                 <Text style={[styles.outlineActionText, rsvp === 'going' && styles.outlineActionTextOn]} numberOfLines={1}>
                                     {rsvp === 'going' ? 'Going' : "I'm Going"}
@@ -833,7 +833,7 @@ export default function EventDetailScreen() {
                                             style={[styles.groupChatBtn, isInGroupChat && styles.groupChatBtnOpen]}
                                         >
                                             {joiningGroupChat ? (
-                                                <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                                                <ActivityIndicator size="small" color={SynthTokens.colors.onAccent} />
                                             ) : (
                                                 <Text style={styles.groupChatBtnTxt}>
                                                     {isInGroupChat ? 'Open Chat' : groupChat ? 'Join Chat' : 'Start Group Chat'}
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     outlineActionTextOn: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.onAccent,
     },
     infoCard: {
         backgroundColor: SynthTokens.colors.neutral0,
@@ -1353,7 +1353,7 @@ const styles = StyleSheet.create({
     groupChatBtnTxt: {
         fontSize: 16,
         fontWeight: '700',
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.onAccent,
     },
     // Meet
     meetEmptyWrap: {

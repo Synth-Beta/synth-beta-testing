@@ -183,7 +183,7 @@ export function PastDatePicker({ visible, value, onSelect, onClose }: Props) {
 const CELL = `${100 / 7}%`;
 
 const styles = StyleSheet.create({
-    sheet: { flex: 1, backgroundColor: '#FFFDFA' },
+    sheet: { flex: 1, backgroundColor: SynthTokens.colors.neutral0 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: SynthTokens.alpha('neutral0', 'D9'),
   },
   pillText: { fontWeight: '700' },
 });

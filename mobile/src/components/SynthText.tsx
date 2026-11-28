@@ -68,6 +68,6 @@ const colorStyles = StyleSheet.create({
     primary: { color: SynthTokens.colors.neutral900 },
     secondary: { color: SynthTokens.colors.neutral600 },
     disabled: { color: SynthTokens.colors.neutral400 },
-    white: { color: SynthTokens.colors.neutral0 },
+    white: { color: SynthTokens.colors.onAccent },
     brand: { color: SynthTokens.colors.brandPink500 },
 });

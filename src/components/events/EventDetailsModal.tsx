@@ -2336,7 +2336,7 @@ export function EventDetailsModal({
                     <Button
                       style={{
                         backgroundColor: verifiedChatInfo?.is_user_member ? 'var(--neutral-900)' : 'var(--brand-pink-500)',
-                        color: 'var(--neutral-50)',
+                        color: 'var(--on-accent)',
                         fontWeight: 700,
                         minWidth: 180,
                       }}
@@ -2816,8 +2816,8 @@ export function EventDetailsModal({
                             hasInteracted.current = true;
                           }}
                         >
-                          <Ticket size={16} style={{ flexShrink: 0, color: 'var(--neutral-50)' }} />
-                          <span style={{ color: 'var(--neutral-50)' }}>Get Tickets</span>
+                          <Ticket size={16} style={{ flexShrink: 0, color: 'var(--neutral-0)' }} />
+                          <span style={{ color: 'var(--neutral-0)' }}>Get Tickets</span>
                         </a>
                       </Button>
                     );

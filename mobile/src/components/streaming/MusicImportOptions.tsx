@@ -190,6 +190,6 @@ const styles = StyleSheet.create({
   },
   btnOutlineText: { fontSize: 14, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   link: { fontSize: 13, fontWeight: '600', color: SynthTokens.colors.brandPink500, paddingVertical: 2 },
-  note: { fontSize: 13, lineHeight: 19, color: '#047857' },
+  note: { fontSize: 13, lineHeight: 19, color: SynthTokens.colors.success },
   noteError: { color: SynthTokens.colors.neutral600 },
 });

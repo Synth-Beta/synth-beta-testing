@@ -106,9 +106,9 @@ export function InviteFriendsButton({ userId }: { userId: string | null }) {
         accessibilityRole="button"
       >
         {busy ? (
-          <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+          <ActivityIndicator size="small" color={SynthTokens.colors.onAccent} />
         ) : (
-          <UserPlus size={18} color={SynthTokens.colors.neutral0} />
+          <UserPlus size={18} color={SynthTokens.colors.onAccent} />
         )}
         <Text style={styles.pillTxt}>Invite friends</Text>
       </Pressable>
@@ -167,7 +167,7 @@ export function InviteFriendsButton({ userId }: { userId: string | null }) {
               </ScrollView>
 
               <Pressable style={styles.primary} onPress={() => setStep('contacts')} accessibilityRole="button">
-                <UserPlus size={18} color={SynthTokens.colors.neutral0} />
+                <UserPlus size={18} color={SynthTokens.colors.onAccent} />
                 <Text style={styles.primaryTxt}>Invite from Contacts</Text>
               </Pressable>
               <Pressable
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: PINK,
     paddingHorizontal: 14,
   },
-  pillTxt: { color: SynthTokens.colors.neutral0, fontSize: 15, fontWeight: '700' },
+  pillTxt: { color: SynthTokens.colors.onAccent, fontSize: 15, fontWeight: '700' },
   flex: { flex: 1 },
   sheetBody: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
   title: { fontSize: 20, fontWeight: '700', color: SynthTokens.colors.neutral900 },
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 4,
   },
-  primaryTxt: { color: SynthTokens.colors.neutral0, fontSize: 16, fontWeight: '700' },
+  primaryTxt: { color: SynthTokens.colors.onAccent, fontSize: 16, fontWeight: '700' },
   secondaryWide: {
     flexDirection: 'row',
     alignItems: 'center',

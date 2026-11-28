@@ -159,7 +159,7 @@ export default function ParentalControlsScreen() {
           {/* Verification status row */}
           <View style={styles.ageRow}>
             {ageVerified
-              ? <CheckCircle size={18} color="#16a34a" />
+              ? <CheckCircle size={18} color={SynthTokens.colors.success} />
               : <Calendar size={18} color={SynthTokens.colors.neutral400} />}
             <Text style={styles.ageRowLabel}>Age verified</Text>
             <View style={[styles.ageBadge, ageVerified ? styles.ageBadgeVerified : styles.ageBadgeNot]}>
@@ -236,7 +236,7 @@ export default function ParentalControlsScreen() {
                   onValueChange={v => void handleToggle('dm_restricted', v)}
                   disabled={saving}
                   trackColor={{ false: SynthTokens.colors.neutral200, true: 'rgba(204,36,134,0.25)' }}
-                  thumbColor={controls.dm_restricted ? PINK : SynthTokens.colors.neutral0}
+                  thumbColor={controls.dm_restricted ? PINK : SynthTokens.colors.onAccent}
                   ios_backgroundColor={SynthTokens.colors.neutral200}
                 />
               </View>
@@ -261,7 +261,7 @@ export default function ParentalControlsScreen() {
                   onValueChange={v => void handleToggle('is_public_profile', !v)}
                   disabled={saving}
                   trackColor={{ false: SynthTokens.colors.neutral200, true: 'rgba(204,36,134,0.25)' }}
-                  thumbColor={!controls.is_public_profile ? PINK : SynthTokens.colors.neutral0}
+                  thumbColor={!controls.is_public_profile ? PINK : SynthTokens.colors.onAccent}
                   ios_backgroundColor={SynthTokens.colors.neutral200}
                 />
               </View>
@@ -384,21 +384,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: '#eff6ff',
+    backgroundColor: SynthTokens.colors.infoBlue050,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: SynthTokens.alpha('infoBlue500', '55'),
   },
   infoText: { flex: 1 },
   infoTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1e3a5f',
+    color: SynthTokens.colors.infoBlue500,
     marginBottom: 4,
   },
   infoBody: {
-    color: '#1d4ed8',
+    color: SynthTokens.colors.infoBlue500,
     lineHeight: 18,
     fontSize: 12,
   },
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   ageBadgeVerified: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: SynthTokens.alpha('success', '1F'),
     borderColor: '#16a34a',
   },
   ageBadgeNot: {
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  ageBadgeTxtVerified: { color: '#16a34a' },
+  ageBadgeTxtVerified: { color: SynthTokens.colors.success },
   ageBadgeTxtNot: { color: SynthTokens.colors.neutral600 },
   ageInfoRow: {
     flexDirection: 'row',
@@ -495,5 +495,5 @@ const styles = StyleSheet.create({
   },
   minorNote: { fontSize: 12, lineHeight: 17, marginTop: -4 },
   birthdayNote: { fontSize: 12, lineHeight: 17, marginTop: -4 },
-  infoBodyBlue: { color: '#1d4ed8', lineHeight: 18, fontSize: 12, flex: 1 },
+  infoBodyBlue: { color: SynthTokens.colors.infoBlue500, lineHeight: 18, fontSize: 12, flex: 1 },
 });

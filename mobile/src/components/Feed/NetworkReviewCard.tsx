@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { SynthText } from '../SynthText';
+import { usePalette } from '../../theme/themePreference';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import type { NetworkReview } from '../../services/homeFeedService';
 import { Star, ThumbsUp, MessageCircle, Share2, Calendar, Mic2, Lightbulb, MapPin as MapPinIcon, Navigation, DollarSign } from 'lucide-react-native';
@@ -58,6 +59,8 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
     onPress,
 }) => {
     const router = useRouter();
+    const palette = usePalette();
+    const isDark = palette === SynthTokens.palette.dark;
     const artist = review.event_info?.artist_name || 'Artist';
     const venue = review.event_info?.venue_name || 'Venue';
     const reviewTitle =
@@ -199,7 +202,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                                 />
                                 {overallRating != null ? (
                                     <View style={styles.ratingBadge} pointerEvents="none">
-                                        <Star size={16} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
+                                        <Star size={16} color={SynthTokens.colors.onAccent} fill={SynthTokens.colors.onAccent} />
                                         <Text style={styles.ratingBadgeText}>{overallRating.toFixed(1)}</Text>
                                     </View>
                                 ) : null}
@@ -211,7 +214,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                             </>
                         ) : (
                             <LinearGradient
-                                colors={[SynthTokens.colors.brandPink600, SynthTokens.colors.brandPink700]}
+                                colors={[SynthTokens.palette.light.brandPink600, SynthTokens.palette.light.brandPink700]}
                                 style={styles.fallbackGradient}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
@@ -224,12 +227,12 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                     </View>
 
                     <View style={styles.bottomOverlay}>
-                        <BlurView intensity={Platform.OS === 'ios' ? 48 : 32} tint="light" style={StyleSheet.absoluteFill} />
+                        <BlurView intensity={Platform.OS === 'ios' ? 48 : 32} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
                         <LinearGradient
                             colors={[
-                                'rgba(255,255,255,0.72)',
-                                'rgba(255,255,255,0.92)',
-                                'rgba(251,251,251,0.98)',
+                                palette.neutral0 + 'B8',
+                                palette.neutral0 + 'EB',
+                                palette.neutral0 + 'FA',
                             ]}
                             style={StyleSheet.absoluteFill}
                             pointerEvents="none"
@@ -348,7 +351,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                     </PressableScale>
 
                     <PressableScale onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share review">
-                        <Share2 size={20} color={SynthTokens.colors.neutral0} />
+                        <Share2 size={20} color={SynthTokens.colors.onAccent} />
                     </PressableScale>
                 </View>
             </View>
@@ -412,7 +415,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: SynthTokens.spacing.md,
     },
     fallbackTitle: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.onAccent,
         textAlign: 'center',
     },
     ratingBadge: {
@@ -429,7 +432,7 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     ratingBadgeText: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.onAccent,
         fontWeight: '600',
         fontSize: 16,
     },
@@ -437,7 +440,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: SynthTokens.spacing.md,
         right: SynthTokens.spacing.md,
-        backgroundColor: 'rgba(255,255,255,0.92)',
+        backgroundColor: SynthTokens.alpha('neutral0', 'EB'),
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 999,
@@ -483,7 +486,7 @@ const styles = StyleSheet.create({
     avatarLetter: {
         fontSize: 11,
         fontWeight: '700',
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.onAccent,
     },
     reviewerName: {
         flex: 1,

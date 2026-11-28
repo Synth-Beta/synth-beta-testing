@@ -31,6 +31,7 @@ import { isSupabaseConfigured, MAGIC_LINK_PENDING_KEY, supabase } from '../../sr
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential, persistAppleDisplayName } from '../../lib/appleAuth';
 import { AppleLogoGlyph } from '../../src/components/auth/AppleLogoGlyph';
+import { usePalette } from '../../src/theme/themePreference';
 import {
   AndroidGoogleSignInPlaceholder,
   AndroidGoogleSignInRow,
@@ -69,6 +70,7 @@ function StageLight() {
 }
 
 export default function SignInScreen() {
+  const palette = usePalette();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -255,7 +257,7 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={[SynthTokens.colors.brandPink050, SynthTokens.colors.neutral0]}
+        colors={[palette.brandPink050, palette.neutral0]}
         locations={[0, 0.7]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -350,7 +352,7 @@ export default function SignInScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={SynthTokens.colors.neutral0} />
+              <ActivityIndicator color={SynthTokens.colors.onAccent} />
             ) : (
               <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign in' : 'Create account'}</Text>
             )}
@@ -418,9 +420,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primary: { backgroundColor: AUTH_PINK },
-  primaryText: { color: SynthTokens.colors.neutral0, fontWeight: '600', fontSize: 16 },
+  primaryText: { color: SynthTokens.colors.onAccent, fontWeight: '600', fontSize: 16 },
   apple: {
-    backgroundColor: '#0E0E0E',
+    backgroundColor: SynthTokens.colors.neutral900,
     marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -433,6 +435,6 @@ const styles = StyleSheet.create({
   magicLinkWrap: { marginTop: 12, alignItems: 'center', paddingVertical: 8 },
   magicLinkText: { color: SynthTokens.colors.neutral600, fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
   dividerText: { color: SynthTokens.colors.neutral400, marginVertical: 12, fontSize: 14, textAlign: 'center' },
-  error: { color: '#dc2626', marginTop: 8 },
+  error: { color: SynthTokens.colors.error, marginTop: 8 },
   message: { color: SynthTokens.colors.neutral600, marginTop: 8 },
 });

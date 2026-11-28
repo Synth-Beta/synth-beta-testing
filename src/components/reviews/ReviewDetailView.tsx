@@ -872,7 +872,7 @@ export function ReviewDetailView({
               className="rounded-xl border-2"
               style={{
                 borderColor: 'var(--neutral-300, #c9c9c9)',
-                backgroundColor: '#FFFDFA',
+                backgroundColor: 'var(--neutral-0)',
                 padding: '16px',
               }}
             >
@@ -940,7 +940,7 @@ export function ReviewDetailView({
                     className="flex gap-6 items-center p-3 rounded-xl border-2"
                     style={{
                       borderColor: 'var(--neutral-300, #c9c9c9)',
-                      backgroundColor: '#FFFDFA',
+                      backgroundColor: 'var(--neutral-0)',
                     }}
                   >
                     {/* Category Info */}
@@ -1255,7 +1255,7 @@ export function ReviewDetailView({
               disabled={isDeleting}
               style={{
                 backgroundColor: 'var(--status-error-500)',
-                color: 'var(--neutral-50)',
+                color: 'var(--on-accent)',
                 height: 'var(--size-input-height, 44px)',
                 boxShadow: '0 4px 4px 0 var(--shadow-color)',
               }}

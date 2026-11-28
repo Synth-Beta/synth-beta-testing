@@ -6,6 +6,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+// uuid, not crypto.randomUUID: that needs Chrome 92+ / Safari 15.4+ and crashed older Android browsers.
+import { v4 as uuidv4 } from 'uuid';
 import { logError } from './errorMonitoringService';
 
 export interface FunnelStage {
@@ -435,7 +437,7 @@ export class ConversionFunnelService {
 
     return {
       user_id: userId,
-      journey_id: sessionInteractions[0].session_id || crypto.randomUUID(),
+      journey_id: sessionInteractions[0].session_id || uuidv4(),
       start_time: startTime,
       end_time: endTime,
       stages_completed: stagesCompleted,

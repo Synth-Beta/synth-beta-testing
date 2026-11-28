@@ -96,7 +96,7 @@ export function SynthButton({
         >
             {variant === 'primary' && !disabled ? (
                 <LinearGradient
-                    colors={[SynthTokens.colors.brandPink500, SynthTokens.colors.purpleAccent]}
+                    colors={[SynthTokens.palette.light.brandPink500, SynthTokens.palette.light.purpleAccent]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={[StyleSheet.absoluteFill, { borderRadius: SynthTokens.radius.full }]}

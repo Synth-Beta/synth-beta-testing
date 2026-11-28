@@ -105,7 +105,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         style={{
           top: 'var(--spacing-grouped, 24px)',
           backgroundColor: 'var(--brand-pink-500)',
-          color: 'var(--neutral-50)',
+          color: 'var(--on-accent)',
           boxShadow: '0 4px 4px 0 var(--shadow-color)',
           fontFamily: 'var(--font-family)',
           fontSize: 'var(--typography-meta-size, 16px)',

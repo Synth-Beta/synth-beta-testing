@@ -1960,7 +1960,7 @@ const { user, sessionExpired } = useAuth();
                         paddingLeft: 'var(--spacing-small, 12px)',
                         paddingRight: 'var(--spacing-small, 12px)',
                         backgroundColor: 'var(--brand-pink-500)',
-                        color: 'var(--neutral-50)',
+                        color: 'var(--on-accent)',
                         fontFamily: 'var(--font-family)',
                         fontSize: 'var(--typography-meta-size, 16px)',
                         fontWeight: 'var(--typography-meta-weight, 500)',
@@ -1977,8 +1977,8 @@ const { user, sessionExpired } = useAuth();
                         e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
                       }}
                     >
-                      <Edit size={24} style={{ marginRight: 'var(--spacing-inline, 6px)', color: 'var(--neutral-50)' }} />
-                      <span style={{ color: 'var(--neutral-50)' }}>Edit Profile</span>
+                      <Edit size={24} style={{ marginRight: 'var(--spacing-inline, 6px)', color: 'var(--on-accent)' }} />
+                      <span style={{ color: 'var(--on-accent)' }}>Edit Profile</span>
                     </Button>
                     <Button 
                       onClick={onSettings} 
@@ -2782,7 +2782,7 @@ const { user, sessionExpired } = useAuth();
                                           setShowAddReview(true);
                                         }}
                                         className=""
-                                        style={{ backgroundColor: 'var(--info-blue-500)', color: 'var(--neutral-50)' }}
+                                        style={{ backgroundColor: 'var(--info-blue-500)', color: 'var(--on-accent)' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--info-blue-500)'; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--info-blue-500)'; }}
                                       >
@@ -2999,7 +2999,7 @@ const { user, sessionExpired } = useAuth();
                                   padding: '2px 6px',
                                   borderRadius: '4px',
                                   background: 'var(--brand-pink-500)',
-                                  color: 'var(--neutral-0)',
+                                  color: 'var(--on-accent)',
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
                                 }}
                               >
@@ -3045,7 +3045,7 @@ const { user, sessionExpired } = useAuth();
                               // Fallback to gradient with heart icon if no image
                               return (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Heart className="w-1/3 h-1/3" style={{ color: 'var(--neutral-0)' }} />
+                                  <Heart className="w-1/3 h-1/3" style={{ color: 'var(--on-accent)' }} />
                                 </div>
                               );
                             })()}

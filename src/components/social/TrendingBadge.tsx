@@ -72,7 +72,7 @@ export function TrendingBadge({ eventId, className }: TrendingBadgeProps) {
         fontSize: 'var(--typography-meta-size, 16px)',
         fontWeight: 'var(--typography-meta-weight, 500)',
         lineHeight: 'var(--typography-meta-line-height, 1.5)',
-        color: 'var(--neutral-50)',
+        color: 'var(--on-accent)',
         boxShadow: '0 4px 4px 0 var(--shadow-color)',
         gap: 'var(--spacing-inline, 6px)'
       }}

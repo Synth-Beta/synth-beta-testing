@@ -307,7 +307,7 @@ export function FollowingModal({
                   setManualArtistOpen(false);
                   setManualArtist(null);
                 }}
-                className="flex items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#1f2937] shadow-sm"
+                className="flex items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[var(--neutral-900)] shadow-sm"
                 style={{ width: '44px', height: '44px' }}
               >
                 <X className="h-5 w-5" />

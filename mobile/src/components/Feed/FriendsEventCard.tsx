@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.brandPink050,
         borderWidth: 1,
         borderTopWidth: 0,
-        borderColor: '#FBCFE8',
+        borderColor: SynthTokens.alpha('brandPink500', '40'),
         borderBottomLeftRadius: SynthTokens.radius.corner,
         borderBottomRightRadius: SynthTokens.radius.corner,
         paddingHorizontal: 14,

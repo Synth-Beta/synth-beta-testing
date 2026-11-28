@@ -543,7 +543,7 @@ export function SwiftUIReviewCard({
                     style={{
                       top: 'var(--spacing-grouped, 24px)',
                       backgroundColor: '#F5A623',
-                      color: 'var(--neutral-50)',
+                      color: 'var(--on-accent)',
                       boxShadow: '0 4px 4px 0 var(--shadow-color)',
                       fontFamily: 'var(--font-family)',
                       fontSize: 'var(--typography-meta-size, 16px)',
@@ -577,7 +577,7 @@ export function SwiftUIReviewCard({
                       fontSize: 'var(--typography-h2-size, 24px)',
                       fontWeight: 'var(--typography-h2-weight, 700)',
                       lineHeight: 'var(--typography-h2-line-height, 1.3)',
-                      color: 'var(--neutral-0)',
+                      color: 'var(--on-accent)',
                     }}
                   >
                     {reviewTitle}
@@ -768,7 +768,7 @@ export function SwiftUIReviewCard({
                 >
                   <ThumbsUp 
                     className={cn('w-4 h-4', isLiked && 'fill-current')} 
-                    style={{ color: 'var(--neutral-50)' }} 
+                    style={{ color: 'var(--on-accent)' }} 
                   />
                   <span style={{ 
                     color: 'var(--neutral-600)',
@@ -799,7 +799,7 @@ export function SwiftUIReviewCard({
                   }}
                   aria-label="View comments"
                 >
-                  <MessageCircle className="w-4 h-4" style={{ color: 'var(--neutral-50)' }} />
+                  <MessageCircle className="w-4 h-4" style={{ color: 'var(--on-accent)' }} />
                   <span style={{ 
                     color: 'var(--neutral-600)',
                     fontFamily: 'var(--font-family)',
@@ -817,7 +817,7 @@ export function SwiftUIReviewCard({
                     height: 'var(--size-input-height, 44px)',
                     padding: 0,
                     backgroundColor: 'var(--brand-pink-500)',
-                    color: 'var(--neutral-50)',
+                    color: 'var(--on-accent)',
                     borderRadius: 'var(--radius-corner, 10px)',
                     boxShadow: '0 4px 4px 0 var(--shadow-color)',
                   }}
@@ -833,7 +833,7 @@ export function SwiftUIReviewCard({
                   }}
                   aria-label="Share review"
                 >
-                  <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
+                  <Share2 className="w-6 h-6" style={{ color: 'var(--on-accent)' }} />
                 </Button>
               </div>
             </div>
@@ -976,7 +976,7 @@ export function SwiftUIReviewCard({
                     <AvatarFallback
                       style={{
                         background: 'var(--brand-pink-500)',
-                        color: 'var(--neutral-0)',
+                        color: 'var(--on-accent)',
                         fontWeight: 600,
                       }}
                     >

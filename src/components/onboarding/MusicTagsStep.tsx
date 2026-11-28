@@ -326,18 +326,18 @@ export const MusicTagsStep = ({
                   borderRadius: '999px',
                 }}
               >
-                <span className="button-text-meta" style={{ color: 'var(--neutral-50)' }}>{genre}</span>
+                <span className="button-text-meta" style={{ color: 'var(--on-accent)' }}>{genre}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveGenre(genre)}
                   className="flex items-center justify-center hover:opacity-80 transition-opacity"
                   style={{
-                    color: 'var(--neutral-50)',
+                    color: 'var(--on-accent)',
                     width: '24px',
                     height: '24px',
                   }}
                 >
-                  <X style={{ width: '24px', height: '24px', color: 'var(--neutral-50)' }} />
+                  <X style={{ width: '24px', height: '24px', color: 'var(--on-accent)' }} />
                 </button>
               </div>
             ))}
@@ -446,18 +446,18 @@ export const MusicTagsStep = ({
                   borderRadius: '999px',
                 }}
               >
-                <span className="button-text-meta" style={{ color: 'var(--neutral-50)' }}>{artist}</span>
+                <span className="button-text-meta" style={{ color: 'var(--on-accent)' }}>{artist}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveArtist(artist)}
                   className="flex items-center justify-center hover:opacity-80 transition-opacity"
                   style={{
-                    color: 'var(--neutral-50)',
+                    color: 'var(--on-accent)',
                     width: '24px',
                     height: '24px',
                   }}
                 >
-                  <X style={{ width: '24px', height: '24px', color: 'var(--neutral-50)' }} />
+                  <X style={{ width: '24px', height: '24px', color: 'var(--on-accent)' }} />
                 </button>
               </div>
             ))}

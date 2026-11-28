@@ -127,7 +127,7 @@ export default function InviteScreen() {
       <View style={styles.actions}>
         {state === 'preview' ? (
           <Pressable style={[styles.primary, busy && styles.dim]} onPress={() => void accept()} disabled={busy}>
-            {busy ? <ActivityIndicator color={SynthTokens.colors.neutral0} /> : null}
+            {busy ? <ActivityIndicator color={SynthTokens.colors.onAccent} /> : null}
             <Text style={styles.primaryTxt}>Accept invite</Text>
           </Pressable>
         ) : invite?.event_id ? (
@@ -140,7 +140,7 @@ export default function InviteScreen() {
               accessibilityRole="button"
               accessibilityState={{ selected: interested }}
             >
-              <Heart size={20} color={interested ? SynthTokens.colors.neutral0 : PINK} fill={interested ? SynthTokens.colors.neutral0 : 'transparent'} />
+              <Heart size={20} color={interested ? SynthTokens.colors.onAccent : PINK} fill={interested ? SynthTokens.colors.onAccent : 'transparent'} />
               <Text style={[styles.interestTxt, interested && styles.interestTxtOn]}>
                 {interested ? 'Interested' : "I'm interested"}
               </Text>
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryTxt: { color: SynthTokens.colors.neutral0, fontSize: 17, fontWeight: '700' },
+  primaryTxt: { color: SynthTokens.colors.onAccent, fontSize: 17, fontWeight: '700' },
   interest: {
     flexDirection: 'row',
     gap: 8,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   interestOn: { backgroundColor: PINK },
   interestTxt: { fontSize: 17, fontWeight: '700', color: PINK },
-  interestTxtOn: { color: SynthTokens.colors.neutral0 },
+  interestTxtOn: { color: SynthTokens.colors.onAccent },
   secondary: {
     minHeight: 52,
     borderRadius: 26,

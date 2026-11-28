@@ -444,7 +444,7 @@ export default function StreamingStatsScreen() {
             disabled={resyncing}
             accessibilityLabel="Resync streaming stats"
           >
-            <RefreshCw size={14} color={SynthTokens.colors.neutral0} />
+            <RefreshCw size={14} color={SynthTokens.colors.onAccent} />
             <Text style={styles.resyncBtnText}>{resyncing ? 'Syncing…' : 'Resync'}</Text>
           </Pressable>
         ) : (
@@ -534,7 +534,7 @@ export default function StreamingStatsScreen() {
               </SynthText>
               <View style={styles.syncingActionsRow}>
                 <Pressable style={styles.refreshBtn} onPress={() => void handleResync()}>
-                  <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
+                  <RefreshCw size={16} color={SynthTokens.colors.onAccent} />
                   <Text style={styles.refreshBtnText}>{resyncing ? 'Syncing…' : 'Sync now'}</Text>
                 </Pressable>
                 <Pressable style={styles.openWebBtn} onPress={() => openStreamingOnWeb(linkStatus.provider)}>
@@ -578,7 +578,7 @@ export default function StreamingStatsScreen() {
                     <Text style={styles.bannerBtnPrimaryText}>Reconnect on web</Text>
                   </Pressable>
                   <Pressable style={styles.bannerBtn} onPress={() => void handleResync()} disabled={resyncing}>
-                    <RefreshCw size={14} color="#92400e" />
+                    <RefreshCw size={14} color={SynthTokens.colors.warning} />
                     <Text style={styles.bannerBtnText}>{resyncing ? 'Syncing…' : 'Sync now'}</Text>
                   </Pressable>
                 </View>
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   resyncBtnText: {
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: PINK + '20',
+    backgroundColor: SynthTokens.alpha('brandPink500', '20'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -805,26 +805,26 @@ const styles = StyleSheet.create({
   bannerBlue: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#eff6ff',
+    borderColor: SynthTokens.alpha('infoBlue500', '55'),
+    backgroundColor: SynthTokens.colors.infoBlue050,
     padding: 12,
   },
   bannerBlueText: {
     fontSize: 13,
-    color: '#1e3a8a',
+    color: SynthTokens.colors.infoBlue500,
     lineHeight: 18,
   },
   bannerAmber: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#fcd34d',
-    backgroundColor: '#fffbeb',
+    borderColor: SynthTokens.alpha('warning', '66'),
+    backgroundColor: SynthTokens.alpha('warning', '1F'),
     padding: 12,
     gap: 10,
   },
   bannerAmberText: {
     fontSize: 13,
-    color: '#78350f',
+    color: SynthTokens.colors.warning,
     lineHeight: 18,
   },
   bannerActionsRow: {
@@ -852,13 +852,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#fcd34d',
-    backgroundColor: '#FFFDFA',
+    borderColor: SynthTokens.alpha('warning', '66'),
+    backgroundColor: SynthTokens.colors.neutral0,
   },
   bannerBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#92400e',
+    color: SynthTokens.colors.warning,
   },
   list: { gap: 8 },
   emptyMsg: { lineHeight: 20, paddingVertical: 12, textAlign: 'center' },

@@ -2965,7 +2965,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     className="h-[44px] w-[44px] p-0 rounded-br-[10px] rounded-tr-[10px] rounded-bl-0 rounded-tl-0 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0" 
                     style={{ 
                       backgroundColor: 'var(--brand-pink-500)', 
-                      color: 'var(--neutral-50)'
+                      color: 'var(--on-accent)'
                     }}
                     onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
@@ -2973,7 +2973,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     aria-label="Send message"
                     aria-describedby={!newMessage.trim() ? "chat-send-disabled-hint" : undefined}
                   >
-                    <Send className="w-[22px] h-[22px]" style={{ color: 'var(--neutral-50)' }} aria-hidden="true" />
+                    <Send className="w-[22px] h-[22px]" style={{ color: 'var(--on-accent)' }} aria-hidden="true" />
                   </Button>
                   {!newMessage.trim() && (
                     <span id="chat-send-disabled-hint" className="sr-only">Message input is empty</span>
@@ -3165,7 +3165,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 }}
                 disabled={selectedUsers.length === 0}
                 className="w-full mt-4 py-6 font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
+                style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--on-accent)' }}
               >
                 {selectedUsers.length === 0 ? 'Select friends to chat with' : selectedUsers.length === 1 ? 'Start Chat' : 'Create Group Chat'}
               </Button>
@@ -3200,7 +3200,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     src={selectedReviewDetail.author?.avatar_url || undefined} 
                     alt={selectedReviewDetail.author?.name ? `${selectedReviewDetail.author.name}'s profile picture` : "User profile picture"} 
                   />
-                  <AvatarFallback style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
+                  <AvatarFallback style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--on-accent)' }}>
                     {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -3237,7 +3237,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     className="max-w-full max-h-full object-contain"
                   />
                 ) : (
-                  <div className="text-center px-8" style={{ color: 'var(--neutral-50)' }}>
+                  <div className="text-center px-8" style={{ color: 'var(--on-accent)' }}>
                     <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1, marginBottom: 16, letterSpacing: '-2px' }}>
                       <span style={{ opacity: 0.6 }}>S</span>ynth
                     </div>

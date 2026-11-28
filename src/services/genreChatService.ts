@@ -38,9 +38,8 @@ export function pastelFromHex(hex: string, whiteMix = 0.86): string {
     const raw = hex.trim().replace('#', '');
     const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
     if (!/^[0-9a-fA-F]{6}$/.test(full)) return '#FFF6F8';
-    const n = parseInt(full, 16);
-    const mix = (channel: number) => Math.round(channel * (1 - whiteMix) + 255 * whiteMix);
-    return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
+    // Mix into the surface token, so the tint sits on near-black in dark mode instead of glowing pastel.
+    return `color-mix(in srgb, #${full} ${Math.round((1 - whiteMix) * 100)}%, var(--neutral-0))`;
 }
 
 /** Emoji mark for a genre-community chat: saturated outline, pastel fill. */

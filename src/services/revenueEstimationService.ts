@@ -6,6 +6,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+// uuid, not crypto.randomUUID: that needs Chrome 92+ / Safari 15.4+ and crashed older Android browsers.
+import { v4 as uuidv4 } from 'uuid';
 import { logError } from './errorMonitoringService';
 
 export interface RevenueAttribution {
@@ -92,7 +94,7 @@ export class RevenueEstimationService {
         const confidenceScore = this.calculateConfidenceScore(click.metadata);
 
         revenueAttributions.push({
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           interaction_id: click.id,
           revenue_type: 'ticket_click',
           estimated_amount: estimatedAmount,
@@ -152,7 +154,7 @@ export class RevenueEstimationService {
         const confidenceScore = this.calculateSubscriptionConfidence(change.metadata);
 
         revenueAttributions.push({
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           interaction_id: change.id,
           revenue_type: 'subscription',
           estimated_amount: estimatedAmount,
@@ -207,7 +209,7 @@ export class RevenueEstimationService {
 
         if (estimatedAmount > 0) {
           revenueAttributions.push({
-            id: crypto.randomUUID(),
+            id: uuidv4(),
             interaction_id: share.id,
             revenue_type: 'affiliate',
             estimated_amount: estimatedAmount,

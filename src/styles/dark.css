@@ -1,0 +1,113 @@
+/*
+ * Dark theme overrides for older styles that hard-code light colors (glass surfaces, pastel
+ * badges). Tokens already flip via :root.dark in tokens.css; this file only covers literals.
+ * Glass on dark: a translucent raised surface with a faint hairline, no white inner highlight.
+ */
+:root.dark .web-rail {
+  background: var(--neutral-0);
+}
+
+/* Home / Community / Messages canvas: night version of the soft pink wash */
+:root.dark .page-shell:has(.grouped-canvas),
+:root.dark .grouped-canvas,
+:root.dark [data-testid="web-app-shell"]:has(.grouped-canvas) {
+  background-color: var(--neutral-50);
+  background-image:
+    radial-gradient(ellipse 90% 60% at 100% -10%, rgba(214, 60, 147, 0.12), transparent 58%),
+    radial-gradient(ellipse 80% 55% at -10% 110%, rgba(214, 60, 147, 0.08), transparent 60%);
+}
+:root.dark [data-testid="web-app-shell"]:has(.grouped-canvas) .grouped-canvas,
+:root.dark [data-testid="web-app-shell"]:has(.grouped-canvas) .page-shell {
+  background: transparent;
+  background-image: none;
+}
+
+:root.dark .page-shell:has(.grouped-canvas) .home-brand-bar,
+:root.dark .grouped-canvas > .home-brand-bar {
+  background: rgba(18, 17, 16, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+:root.dark .grouped-canvas .synth-search-bar,
+:root.dark .community-tile,
+:root.dark .community-board__reviews .community-review,
+:root.dark .thread-card,
+:root.dark .thread-review {
+  background: rgba(27, 25, 24, 0.72);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+:root.dark .community-tile--feed {
+  background: transparent;
+  border: none;
+}
+:root.dark .thread-card:hover {
+  background: rgba(37, 35, 33, 0.85);
+}
+:root.dark .thread-card:focus-visible {
+  box-shadow: 0 0 0 3px var(--neutral-50), 0 0 0 5px var(--brand-pink-500);
+}
+:root.dark .home-thread .swift-ui-card {
+  background: rgba(27, 25, 24, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: none !important;
+}
+
+/* Floating chips over event photos */
+:root.dark .thread-card__date {
+  background: rgba(27, 25, 24, 0.9);
+}
+
+/* Pastel badges: tinted dark fills, status-colored text */
+:root.dark .thread-card__review {
+  background: var(--status-warning-050);
+  border-color: rgba(226, 184, 74, 0.25);
+}
+:root.dark .thread-card__review-meta,
+:root.dark .thread-card__review-meta strong {
+  color: var(--status-warning-500);
+}
+:root.dark .thread-card__review p {
+  color: var(--neutral-600);
+}
+:root.dark .thread-card__friends {
+  color: var(--status-success-500);
+  background: var(--status-success-050);
+}
+
+:root.dark .side-menu__pickfive-icon {
+  background: var(--brand-pink-050);
+}
+
+/* Shimmer placeholders */
+:root.dark .animate-shimmer {
+  background: linear-gradient(90deg, var(--neutral-100) 25%, var(--neutral-200) 50%, var(--neutral-100) 75%);
+  background-size: 200% 100%;
+}
+
+/* Legacy glass utilities (index.css): drop the white sheen and pink glow on dark */
+:root.dark .inner-glow {
+  background: var(--neutral-0);
+}
+:root.dark .glass-card::before,
+:root.dark .inner-glow::after {
+  background: none;
+}
+:root.dark .floating-shadow,
+:root.dark .floating-shadow:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Tailwind pink tints used as pastel surfaces in light mode */
+:root.dark .bg-pink-50 { background-color: var(--brand-pink-050); }
+:root.dark .bg-pink-100 { background-color: #3A1A2C; }
+:root.dark .border-pink-100,
+:root.dark .border-pink-200 { border-color: rgba(214, 60, 147, 0.28); }
+:root.dark .text-pink-600 { color: var(--brand-pink-600); }
+:root.dark .text-pink-700,
+:root.dark .text-pink-900 { color: var(--brand-pink-700); }
+
+/* Sign-in stage light: at night it is a pink spot on a dark stage, not a pastel wash */
+:root.dark .auth-light {
+  background: radial-gradient(ellipse 45% 65% at 50% 0%, rgba(214, 60, 147, 0.35) 0%, rgba(214, 60, 147, 0.12) 45%, transparent 75%) !important;
+}

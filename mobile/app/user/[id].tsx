@@ -386,7 +386,7 @@ export default function PublicUserProfileScreen() {
                   ) : friendStatus === 'friends' ? (
                     <><UserCheck size={16} color="#FFFDFA" /><SynthText variant="meta" style={styles.friendBtnTxt}>Friends</SynthText></>
                   ) : friendStatus === 'pending_sent' ? (
-                    <><UserX size={16} color="#CC2486" /><SynthText variant="meta" style={styles.friendBtnTxtPink}>Request sent</SynthText></>
+                    <><UserX size={16} color={SynthTokens.colors.brandPink500} /><SynthText variant="meta" style={styles.friendBtnTxtPink}>Request sent</SynthText></>
                   ) : friendStatus === 'pending_received' ? (
                     <><UserCheck size={16} color="#FFFDFA" /><SynthText variant="meta" style={styles.friendBtnTxt}>Accept request</SynthText></>
                   ) : (
@@ -539,5 +539,5 @@ const styles = StyleSheet.create({
   friendBtnPending: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#CC2486' },
   friendBtnReceived: { backgroundColor: '#16A34A' },
   friendBtnTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 13 },
-  friendBtnTxtPink: { color: '#CC2486', fontWeight: '700', fontSize: 13 },
+  friendBtnTxtPink: { color: SynthTokens.colors.brandPink500, fontWeight: '700', fontSize: 13 },
 });

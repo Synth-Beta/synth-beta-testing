@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
         borderColor: SynthTokens.colors.brandPink500,
     },
     scopeChipText: { fontWeight: '600', color: SynthTokens.colors.neutral900 },
-    scopeChipTextActive: { color: SynthTokens.colors.neutral0 },
+    scopeChipTextActive: { color: SynthTokens.colors.onAccent },
     allContent: {
         paddingTop: SynthTokens.spacing.sm,
         gap: 4,

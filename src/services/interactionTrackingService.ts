@@ -9,6 +9,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+// uuid, not crypto.randomUUID: that needs Chrome 92+ / Safari 15.4+ and crashed older Android browsers.
+import { v4 as uuidv4 } from 'uuid';
 
 export interface InteractionEvent {
   sessionId?: string;
@@ -97,7 +99,7 @@ class InteractionTrackingService {
   }
 
   private generateSessionId(): string {
-    return crypto.randomUUID();
+    return uuidv4();
   }
 
   // UUID validation regex

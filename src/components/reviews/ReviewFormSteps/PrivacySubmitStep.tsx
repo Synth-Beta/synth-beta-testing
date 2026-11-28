@@ -78,8 +78,8 @@ export function PrivacySubmitStep({
               <Star 
                 className={`${sizeClass} ${fillColor} fill-current`}
                 style={size === 'lg' ? { 
-                  color: 'var(--neutral-50)',
-                  fill: 'var(--neutral-50)'
+                  color: 'var(--on-accent)',
+                  fill: 'var(--on-accent)'
                 } : undefined}
               />
             </div>
@@ -114,26 +114,26 @@ export function PrivacySubmitStep({
       <section className="rounded-3xl shadow-lg p-8 space-y-4" style={{ background: 'var(--gradient-brand)' }}>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <p className="text-xs" style={{ color: 'var(--neutral-50)' }}>Average rating</p>
+            <p className="text-xs" style={{ color: 'var(--on-accent)' }}>Average rating</p>
             <div className="flex items-baseline gap-4 mt-2">
-              <span className="text-5xl font-bold tracking-tight" style={{ color: 'var(--neutral-50)' }}>{averageDisplay}</span>
+              <span className="text-5xl font-bold tracking-tight" style={{ color: 'var(--on-accent)' }}>{averageDisplay}</span>
               <div className="flex items-center gap-1">
                 {getRatingStars(roundedAverage, 'lg')}
               </div>
             </div>
-            <p className="text-sm mt-2" style={{ color: 'var(--neutral-50)' }}>
+            <p className="text-sm mt-2" style={{ color: 'var(--on-accent)' }}>
               Based on five categories of your concert experience.
             </p>
           </div>
           <div className="flex flex-col items-start sm:items-end gap-2">
             {formData.selectedArtist?.name && formData.selectedVenue?.name && (
-              <div className="text-sm font-medium" style={{ color: 'var(--neutral-50)' }}>
+              <div className="text-sm font-medium" style={{ color: 'var(--on-accent)' }}>
                 {formData.selectedArtist?.name} @ {formData.selectedVenue?.name}
               </div>
             )}
             {formData.eventDate && (
-              <div className="text-xs flex items-center gap-2" style={{ color: 'var(--neutral-50)' }}>
-                <Calendar className="w-4 h-4" style={{ color: 'var(--neutral-50)' }} />
+              <div className="text-xs flex items-center gap-2" style={{ color: 'var(--on-accent)' }}>
+                <Calendar className="w-4 h-4" style={{ color: 'var(--on-accent)' }} />
                 {formatDate(formData.eventDate)}
               </div>
             )}
@@ -374,7 +374,7 @@ export function PrivacySubmitStep({
             fontSize: 'var(--typography-meta-size, 16px)',
             fontWeight: 'var(--typography-meta-weight, 500)',
             lineHeight: 'var(--typography-meta-line-height, 1.5)',
-            color: 'var(--neutral-50)',
+            color: 'var(--on-accent)',
             height: 'var(--size-button-height, 36px)',
             paddingLeft: 'var(--spacing-small, 12px)',
             paddingRight: 'var(--spacing-small, 12px)',
@@ -387,8 +387,8 @@ export function PrivacySubmitStep({
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <Check className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
-              <span style={{ color: 'var(--neutral-50)' }}>{submitLabel}</span>
+              <Check className="w-6 h-6" style={{ color: 'var(--on-accent)' }} />
+              <span style={{ color: 'var(--on-accent)' }}>{submitLabel}</span>
             </div>
           )}
         </Button>

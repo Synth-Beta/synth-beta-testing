@@ -60,7 +60,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description
           style={{
             marginTop: 'var(--spacing-grouped, 24px)',
             backgroundColor: 'var(--brand-pink-500)',
-            color: 'var(--neutral-50)',
+            color: 'var(--on-accent)',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';

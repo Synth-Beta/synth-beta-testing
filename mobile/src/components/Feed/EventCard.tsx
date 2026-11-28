@@ -311,7 +311,7 @@ export const EventCard: React.FC<EventCardProps> = ({
         <View style={styles.actions}>
           {isPast ? (
             <PressableScale onPress={onWriteReview} style={styles.writeReviewBtn}>
-              <Star size={18} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
+              <Star size={18} color={SynthTokens.colors.onAccent} fill={SynthTokens.colors.onAccent} />
               <Text style={styles.writeReviewBtnTxt}>Write review</Text>
             </PressableScale>
           ) : (
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     alignItems: 'center',
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: SynthTokens.alpha('neutral0', 'EB'),
   },
   dateBadgeSmall: {
     fontSize: 10,
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: '#fffbeb',
+    backgroundColor: SynthTokens.alpha('warning', '1F'),
     borderWidth: 1,
     borderColor: '#fde68a',
   },
@@ -450,14 +450,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  ratingAvg: { fontSize: 13, fontWeight: '700', color: '#78350f' },
-  ratingName: { flexShrink: 1, fontSize: 13, color: '#92400e' },
+  ratingAvg: { fontSize: 13, fontWeight: '700', color: SynthTokens.colors.warning },
+  ratingName: { flexShrink: 1, fontSize: 13, color: SynthTokens.colors.warning },
   ratingQuote: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 19,
     fontStyle: 'italic',
-    color: '#57534e',
+    color: SynthTokens.colors.neutral600,
   },
   imageWrap: {
     width: '100%',
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   writeReviewBtnTxt: {
     fontSize: 16,
     fontWeight: '700',
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
   },
   interestedBtn: {
     flex: 1,

@@ -58,6 +58,6 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
   },
   pressed: { borderColor: SynthTokens.colors.brandPink500 },
-  label: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: '#3f4650' },
+  label: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: SynthTokens.colors.neutral600 },
   radius: { fontSize: 13, fontWeight: '500', color: SynthTokens.colors.neutral400 },
 });

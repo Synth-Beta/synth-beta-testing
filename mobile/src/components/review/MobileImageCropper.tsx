@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         width: CORNER_SIZE,
         height: CORNER_SIZE,
-        borderColor: '#FFFDFA',
+        borderColor: SynthTokens.colors.onAccent,
     },
     tl: {
         top: 8,

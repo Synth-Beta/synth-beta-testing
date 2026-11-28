@@ -14,13 +14,13 @@
 
 [data-radix-select-item][data-state="checked"] {
   background-color: var(--brand-pink-500) !important;
-  color: var(--neutral-50) !important;
+  color: var(--on-accent) !important;
 }
 
 [data-radix-select-item][data-state="checked"] [data-radix-select-item-indicator] {
-  color: var(--neutral-50) !important;
+  color: var(--on-accent) !important;
 }
 
 [data-radix-select-item][data-state="checked"] svg {
-  color: var(--neutral-50) !important;
+  color: var(--on-accent) !important;
 }

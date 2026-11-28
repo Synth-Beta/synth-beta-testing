@@ -98,7 +98,7 @@ export default function SettingsSecurityScreen() {
         {/* Change Email */}
         <View style={styles.card}>
           <View style={styles.sectionHead}>
-            <View style={[styles.iconBubble, { backgroundColor: '#dbeafe' }]}>
+            <View style={[styles.iconBubble, { backgroundColor: SynthTokens.colors.infoBlue050 }]}>
               <AtSign size={18} color="#3b82f6" />
             </View>
             <View style={styles.sectionHeadText}>
@@ -127,7 +127,7 @@ export default function SettingsSecurityScreen() {
             disabled={!newEmail.trim() || newEmail.trim() === email || changingEmail}
           >
             {changingEmail ? (
-              <ActivityIndicator color={SynthTokens.colors.neutral0} />
+              <ActivityIndicator color={SynthTokens.colors.onAccent} />
             ) : (
               <Text style={styles.actionBtnTxt}>Send confirmation email</Text>
             )}
@@ -139,7 +139,7 @@ export default function SettingsSecurityScreen() {
         {/* Reset Password */}
         <View style={styles.card}>
           <View style={styles.sectionHead}>
-            <View style={[styles.iconBubble, { backgroundColor: '#e0e7ff' }]}>
+            <View style={[styles.iconBubble, { backgroundColor: SynthTokens.colors.infoBlue050 }]}>
               <Key size={18} color="#6366f1" />
             </View>
             <View style={styles.sectionHeadText}>
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#e0e7ff',
+    backgroundColor: SynthTokens.colors.infoBlue050,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   actionBtnTxt: {
     fontSize: 15,
     fontWeight: '700',
-    color: SynthTokens.colors.neutral0,
+    color: SynthTokens.colors.onAccent,
   },
   outlineBtn: {
     borderWidth: 1.5,
@@ -303,21 +303,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: '#eff6ff',
+    backgroundColor: SynthTokens.colors.infoBlue050,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: SynthTokens.alpha('infoBlue500', '55'),
   },
   noteText: { flex: 1 },
   noteTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1e3a5f',
+    color: SynthTokens.colors.infoBlue500,
     marginBottom: 4,
   },
   noteBody: {
-    color: '#1d4ed8',
+    color: SynthTokens.colors.infoBlue500,
     lineHeight: 18,
     fontSize: 12,
   },

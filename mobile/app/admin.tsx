@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FCE7F3',
+    backgroundColor: SynthTokens.colors.brandPink050,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,

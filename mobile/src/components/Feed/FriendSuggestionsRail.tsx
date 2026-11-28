@@ -200,7 +200,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
                 {sendingId === s.user_id ? (
                   <ActivityIndicator size="small" color={SynthTokens.colors.brandPink500} />
                 ) : sent ? (
-                  <Check size={16} color="#16a34a" />
+                  <Check size={16} color={SynthTokens.colors.success} />
                 ) : (
                   <UserPlus size={16} color={SynthTokens.colors.brandPink500} />
                 )}
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   addBtnSent: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: SynthTokens.alpha('success', '1F'),
   },
   dismissBtn: {
     width: 28,
